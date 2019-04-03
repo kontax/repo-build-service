@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Template used for building AUR packages and adding them to a custom S3-based repository.
+
+Parameters:
+  PersonalRepository:
+    Type: String
+  PackageTable:
+    Type: String
+    Default: package-list
+  RepositoryCountries:
+    Type: String
+    Default: "IE,GB"
+
+Globals:
+  Function:
+    Timeout: 3
+    Environment:
+      Variables:
+        PACKAGE_TABLE:
+          Ref: PackageData
+
+Resources:
+
+  PackageUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: PackageUpdateFunction
+      Description: Scheduled updating of the package list in all repositories
+      CodeUri: package_updater
+      Handler: update_packages.lambda_handler
+      Runtime: python3.7
+      Timeout: 600
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PackageData
+      Environment:
+        Variables:
+          COUNTRIES: !Ref RepositoryCountries
+          PERSONAL_REPO: !Ref PersonalRepository
+          PACKAGE_TABLE: !Ref PackageTable
+      Events:
+        PackageUpdateSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: rate(6 hours)
+
+  PackageData:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: !Ref PackageTable
+      PrimaryKey:
+        Name: PackageName
+        Type: String
+
+#  HelloWorldFunction:
+#    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+#    Properties:
+#      CodeUri: src/
+#      Handler: app.lambda_handler
+#      Runtime: python3.7
+#      Events:
+#        HelloWorld:
+#          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+#          Properties:
+#            Path: /hello
+#            Method: get
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+#  HelloWorldApi:
+#    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+#    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt PackageUpdateFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt PackageUpdateFunctionRole.Arn
