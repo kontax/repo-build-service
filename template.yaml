@@ -9,13 +9,20 @@ Parameters:
   PackageTable:
     Type: String
     Default: package-list
+  FanoutStatusTable:
+    Type: String
+    Default: fanout-status
   RepositoryCountries:
     Type: String
     Default: "IE,GB"
+  GithubWebhookSecret:
+    Type: String
+    Default: ABCD1234
 
 Globals:
   Function:
     Timeout: 3
+    Runtime: python3.7
     Environment:
       Variables:
         PACKAGE_TABLE:
@@ -23,14 +30,16 @@ Globals:
 
 Resources:
 
+  #####
+  # Functions
+  ###
   PackageUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: PackageUpdateFunction
+      FunctionName: package-update
       Description: Scheduled updating of the package list in all repositories
       CodeUri: package_updater
       Handler: update_packages.lambda_handler
-      Runtime: python3.7
       Timeout: 600
       Policies:
         - DynamoDBCrudPolicy:
@@ -46,6 +55,66 @@ Resources:
           Properties:
             Schedule: rate(6 hours)
 
+  PkgbuildRetrieverFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pkgbuild-retriever
+      Description: API for pulling the PKGBUILD from Github
+      CodeUri: pkgbuild_retriever
+      Handler: retrieve_pkgbuild.lambda_handler
+      Policies:
+        ###
+      Environment:
+        Variables:
+          NEXT_FUNC: !GetAtt PkgbuildParserFunction.Arn
+          GITHUB_WEBHOOK_SECRET: !Ref GithubWebhookSecret
+      Events:
+        RetrievePkgbuild:
+          Type: Api
+          Properties:
+            Path: /update
+            Method: post
+      Layers:
+        - !Ref AwsLayer
+
+  PkgbuildParserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pkgbuild-parser
+      Description: Parses the PKGBUILD and extracts a list of packages from it
+      CodeUri: pkgbuild_parser
+      Handler: parse_pkgbuild.lambda_handler
+      #Policies:
+      ###
+      Environment:
+        Variables:
+          NEXT_FUNC: !GetAtt PkgbuildFanoutStarterFunction
+
+  PkgbuildFanoutStarterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: pkgbuild-fanout-starter
+      Description: A starter function to set up the fan-out and fan-in of building packages
+      CodeUri: pkgbuild_fanout_starter
+      Handler: fanout.lambda_handler
+
+  #####
+  # Layers
+  ###
+  AwsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: aws-dependencies
+      Description: Dependencies for PKGBUILD apps
+      ContentUri: src/
+      CompatibleRuntimes:
+        - python3.7
+      LicenseInfo: 'MIT'
+      RetentionPolicy: Retain
+
+  #####
+  # Database Tables
+  ###
   PackageData:
     Type: AWS::Serverless::SimpleTable
     Properties:
@@ -53,6 +122,24 @@ Resources:
       PrimaryKey:
         Name: PackageName
         Type: String
+
+  FanoutStatus:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref FanoutStatusTable
+      AttributeDefinitions:
+        - AttributeName: PackageName
+          AttributeType: S
+        - AttributeName: Status
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PackageName
+          KeyType: HASH
+        - AttributeName: Status
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 3
+        WriteCapacityUnits: 3
 
 #  HelloWorldFunction:
 #    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
@@ -74,9 +161,9 @@ Outputs:
 #  HelloWorldApi:
 #    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
 #    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
+  PackageUpdateFunction:
     Description: "Hello World Lambda Function ARN"
     Value: !GetAtt PackageUpdateFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
+  PackageUpdateFunctionIamRole:
+    Description: "Implicit IAM Role created for Package Update function"
     Value: !GetAtt PackageUpdateFunctionRole.Arn
