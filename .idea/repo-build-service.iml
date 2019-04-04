@@ -2,8 +2,15 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src/python" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pkgbuild_parser" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/pkgbuild_retriever" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/package_updater" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fanout_starter" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/check_package_build" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/fanout_controller" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/metapackage_builder" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/build_package" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
     </content>
     <orderEntry type="inheritedJdk" />
