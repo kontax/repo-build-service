@@ -45,6 +45,15 @@ def send_to_queue(queue_url, message):
     print(f"Message sent: {response['MessageId']}")
 
 
+def get_dynamo_resource():
+    """Get a dynamodb resource depending on which environment the function is running in"""
+    if os.getenv("AWS_SAM_LOCAL"):
+        dynamo = boto3.resource('dynamodb', endpoint_url="http://dynamodb:8000")
+    else:
+        dynamo = boto3.resource('dynamodb')
+    return dynamo
+
+
 class ExecuteApiRequest:
 
     def __init__(self, method, service, host, region, endpoint, content_type):

@@ -37,7 +37,7 @@ def _get_dependencies(pkgbuild):
             continue
 
         # Extract the packages
-        if within_depends == True and line != ')':
+        if within_depends and line != ')':
             # Remove comments
             pkg = re.sub('#.*', '', line).strip().split(' ')
             dependencies.extend(pkg)

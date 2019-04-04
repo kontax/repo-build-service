@@ -38,6 +38,7 @@ Resources:
     Properties:
       FunctionName: package-update
       Description: Scheduled updating of the package list in all repositories
+      Runtime: python3.7
       CodeUri: package_updater
       Handler: update_packages.lambda_handler
       Timeout: 600
@@ -60,6 +61,7 @@ Resources:
     Properties:
       FunctionName: pkgbuild-retriever
       Description: API for pulling the PKGBUILD from Github
+      Runtime: python3.7
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
       Policies:
@@ -82,21 +84,82 @@ Resources:
     Properties:
       FunctionName: pkgbuild-parser
       Description: Parses the PKGBUILD and extracts a list of packages from it
+      Runtime: python3.7
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
       #Policies:
       ###
       Environment:
         Variables:
-          NEXT_FUNC: !GetAtt PkgbuildFanoutStarterFunction
+          NEXT_FUNC: !GetAtt PkgbuildFanoutStarterFunction.Arn
+      Layers:
+        - !Ref AwsLayer
 
   PkgbuildFanoutStarterFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: pkgbuild-fanout-starter
       Description: A starter function to set up the fan-out and fan-in of building packages
+      Runtime: python3.7
       CodeUri: pkgbuild_fanout_starter
       Handler: fanout.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FanoutStatusTable
+      Environment:
+        Variables:
+          FANOUT_STATUS: !Ref FanoutStatusTable
+          FANOUT_QUEUE: !GetAtt FanoutQueue.Arn
+
+  CheckPackageBuildFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: check-package-build
+      Description: Checks each package on the queue and decides whether to build or ignore it
+      Runtime: python3.7
+      CodeUri: check_package_build
+      Handler: check_package.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FanoutStatusTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref PackageData
+      Environment:
+        Variables:
+          FANOUT_CONTROLLER: !GetAtt FanoutControllerFunction.Arn
+          PACKAGE_TABLE: !Ref PackageTable
+          BUILD_QUEUE: !GetAtt BuildQueue.Arn
+      Events:
+        Type: SQS
+        Properties:
+          Queue: !GetAtt FanoutQueue.Arn
+
+  FanoutControllerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: fanout-controller
+      Description: Manages the parallel building of packages via the FanoutStatus table
+      Runtime: python3.7
+      CodeUri: fanout_controller
+      Handler: controller.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref FanoutStatusTable
+      Environment:
+        Variables:
+          FANOUT_STATUS: !Ref FanoutStatus
+          METAPACKAGE_BUILDER: !GetAtt MetapackageBuilderFunction.Arn
+
+  MetapackageBuilderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: metapackage-builder
+      Description: Retrieves the metapackage PKGBUILD and queues it for building
+      Runtime: python3.7
+      CodeUri: metapackage_builder
+      Handler: metapackage.lambda_handler
+      Policies:
+
 
   #####
   # Layers
@@ -111,6 +174,15 @@ Resources:
         - python3.7
       LicenseInfo: 'MIT'
       RetentionPolicy: Retain
+
+  #####
+  # Queue's
+  ###
+  FanoutQueue:
+    Type: AWS::SQS::Queue
+
+  BuildQueue:
+    Type: AWS::SQS::Queue
 
   #####
   # Database Tables

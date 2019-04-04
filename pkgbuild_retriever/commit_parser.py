@@ -5,5 +5,6 @@ def get_pkgbuild_location(payload):
 
     return pkgbuild[0]
 
+
 def get_full_name(payload):
     return payload['repository']['full_name']

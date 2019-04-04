@@ -91,4 +91,3 @@ def get_packages(uri):
     filenames = _extract_pkg_name(tar, files)
 
     return filenames
-

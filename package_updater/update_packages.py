@@ -1,15 +1,14 @@
 import json
 import os
 
-import boto3
-
 from arch_packages import get_packages
+from aws import get_dynamo_resource
 from best_mirror import get_best_mirror
 
-PACKAGE_TABLE = os.environ['PACKAGE_TABLE']
+PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
 COUNTRIES = os.environ.get('COUNTRIES')
-REPOS = ["core", "extra", "community"]
 PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
+REPOS = ["core", "extra", "community"]
 
 
 def lambda_handler(event, context):
@@ -37,15 +36,6 @@ def lambda_handler(event, context):
 
     # Return the number of changes being made
     return return_code(200, response_body)
-
-
-def get_dynamo_resource():
-    """Get a dynamodb resource depending on which environment the function is running in"""
-    if os.getenv("AWS_SAM_LOCAL"):
-        dynamo = boto3.resource('dynamodb', endpoint_url="http://dynamodb:8000")
-    else:
-        dynamo = boto3.resource('dynamodb')
-    return dynamo
 
 
 def add_new_packages(mirrors, table):

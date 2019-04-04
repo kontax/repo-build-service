@@ -8,7 +8,7 @@ def validate(event):
     """Validates the payload sent to ensure it comes from a valid Github repository
 
     Args:
-        event (str): The full payload sent by a Github webhook
+        event (dict): The full payload sent by a Github webhook
 
     Returns:
         dict: An HTTP response outlining whether validation passed or threw an error
@@ -64,6 +64,6 @@ def _get_error(code, msg):
     """
     return {
         "statusCode": code,
-        "headers": { "Content-Type": "text/plain" },
+        "headers": {"Content-Type": "text/plain"},
         "body": msg
     }
