@@ -1,19 +1,23 @@
 import json
 import os
 
-from aws import get_dynamo_resource, invoke_lambda
-from enums import Status
+from botocore.vendored import requests
 
-FANOUT_STATUS = os.environ.get('FANOUT_STATUS')
-METAPACKAGE_BUILDER = os.environ.get('METAPACKAGE_BUILDER')
+from aws import invoke_lambda
 
-
-def delete_completed_items(table):
-    table.delete_item(Key={"Status": Status.Complete.name})
+BUILD_FUNC = os.environ.get('BUILD_FUNC')
+PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
 
 
 def lambda_handler(event, context):
     print(event)
+
+    pkgbuild_url = event['url']
+    pkgbuild = requests.get(pkgbuild_url).text
+
+    invoke_lambda(BUILD_FUNC, {"PackageName": "PKGBUILD_METAPACKGE", "Repo": PERSONAL_REPO, "PKGBUILD": pkgbuild})
+
+    return return_code(200, {'status': 'Metapackage sent to build queue'})
 
 
 def return_code(code, body):

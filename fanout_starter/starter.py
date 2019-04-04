@@ -12,10 +12,14 @@ def lambda_handler(event, context):
     print(event)
     # Get Dependencies
     deps = event['dependencies']
+    url = event['url']
 
     # The dynamoDB table containing the running status of each package
     dynamo = get_dynamo_resource()
     table = dynamo.Table(FANOUT_STATUS)
+
+    # Store the metapackage URL for building on completion
+    table.update_item(Key={'PackageName': "METAPACKGE_URL", 'Status': url})
 
     # Put each one in the FANOUT_STATUS table with an "Initialized" status and add it to the queue
     for dep in deps:

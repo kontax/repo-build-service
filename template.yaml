@@ -18,6 +18,12 @@ Parameters:
   GithubWebhookSecret:
     Type: String
     Default: ABCD1234
+  ECSCluster:
+    Type: String
+    Default: "aur-pkgbuild-cluster"
+  TaskDefinition:
+    Type: String
+    Default: "aur-pkgbuild-task"
 
 Globals:
   Function:
@@ -101,8 +107,8 @@ Resources:
       FunctionName: pkgbuild-fanout-starter
       Description: A starter function to set up the fan-out and fan-in of building packages
       Runtime: python3.7
-      CodeUri: pkgbuild_fanout_starter
-      Handler: fanout.lambda_handler
+      CodeUri: fanout_starter
+      Handler: starter.lambda_handler
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
@@ -120,19 +126,32 @@ Resources:
       CodeUri: check_package_build
       Handler: check_package.lambda_handler
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref FanoutStatusTable
         - DynamoDBReadPolicy:
             TableName: !Ref PackageData
       Environment:
         Variables:
           FANOUT_CONTROLLER: !GetAtt FanoutControllerFunction.Arn
           PACKAGE_TABLE: !Ref PackageTable
-          BUILD_QUEUE: !GetAtt BuildQueue.Arn
+          PERSONAL_REPO: !Ref PersonalRepository
+          BUILD_FUNC: !GetAtt BuildFunction.Arn
       Events:
         Type: SQS
         Properties:
           Queue: !GetAtt FanoutQueue.Arn
+
+  BuildFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: build-package
+      Description: Starts an ECS task to build a package and adds the package to the build queue
+      Runtime: python3.7
+      CodeUri: build_package
+      Handler: build.lambda_handler
+      Environment:
+        Variables:
+          BUILD_QUEUE: !GetAtt BuildQueue.Arn
+          ECS_CLUSTER: !Ref ECSCluster
+          TASK_DEFN: !Ref TaskDefinition
 
   FanoutControllerFunction:
     Type: AWS::Serverless::Function
@@ -159,7 +178,11 @@ Resources:
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
       Policies:
-
+        ###
+      Environment:
+        Variables:
+          BUILD_FUNC: !GetAtt BuildFunction.Arn
+          PERSONAL_REPO: !Ref PersonalRepository
 
   #####
   # Layers
@@ -180,9 +203,59 @@ Resources:
   ###
   FanoutQueue:
     Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "fanout-queue"
 
   BuildQueue:
     Type: AWS::SQS::Queue
+    Properties:
+      QueueName: "aur-pkg-build"
+      VisibilityTimeout: 600
+
+  #####
+  # ECS
+  ###
+  PkgbuildCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ECSCluster
+
+  PkgbuildTaskDefinition:
+    Type: AWS::ECS::TaskDefinition"
+    Properties:
+      Family: !Ref TaskDefinition
+      Cpu: "4096"
+      Memory: "8192"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: !GetAtt ### ROLE ARN
+      ExecutionRoleArn: !GetAtt ### ROLE ARN
+      ContainerDefinitions:
+        - Name: "aur-pkg-build"
+          Image: "couldinho/aur-pkg-build:latest"
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: "/ecs/aur-pkg-build"
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: "ecs"
+          Environment:
+            - Name: "PUSHOVER_TOKEN"
+              Value: ${ssm:pushoverToken}
+            - Name: "PUSHOVER_USER"
+              Value: ${ssm:pushoverUser}
+            - Name: "REPO_NAME"
+              Value: ${env:REPO_NAME}
+            - Name: "REPO_ARCH"
+              Value: ${env:REPO_ARCH}
+            - Name: "REPO_URL"
+              Value: ${env:REPO_URL}
+            - Name: "AWS_REGION"
+              Value:
+                Ref: 'AWS::Region'
+            - Name: "SQS_QUEUE_URL"
+              Value: !Ref BuildQueue
 
   #####
   # Database Tables

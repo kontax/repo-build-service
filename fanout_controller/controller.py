@@ -1,15 +1,13 @@
 import json
 import os
 
+from boto3.dynamodb.conditions import Key
+
 from aws import get_dynamo_resource, invoke_lambda
 from enums import Status
 
 FANOUT_STATUS = os.environ.get('FANOUT_STATUS')
 METAPACKAGE_BUILDER = os.environ.get('METAPACKAGE_BUILDER')
-
-
-def delete_completed_items(table):
-    table.delete_item(Key={"Status": Status.Complete.name})
 
 
 def lambda_handler(event, context):
@@ -22,17 +20,18 @@ def lambda_handler(event, context):
     fanout_table.update_item(Key={'PackageName': package_state['PackageName'], 'Status': package_state['Status']})
 
     # Delete completed items
-    delete_completed_items(fanout_table)
+    fanout_table.delete_item(Key={"Status": Status.Complete.name})
 
     # Check remaining items
     resp = fanout_table.scan()
 
     # If items are still running quit and wait for the next invocation
-    if len(resp['Items']) > 0:
+    if len(resp['Items']) > 1:
         return return_code(200, {"status": "Items are still running"})
 
     # Otherwise if everything has completed, invoke the meta-package building function
-    invoke_lambda(METAPACKAGE_BUILDER, None)
+    resp = fanout_table.query(KeyConditionExpression=Key('PackageName').eq("METAPACKAGE_URL"))
+    invoke_lambda(METAPACKAGE_BUILDER, {"url": resp['Items'][0]})
 
     return return_code(200, {"status": "All packages built"})
 

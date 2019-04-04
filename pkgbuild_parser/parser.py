@@ -67,9 +67,5 @@ def run(pkgbuild_file):
     pkgbuild_json['dependencies'] = deps
     pkgbuild_json.pop('payload', None)
 
-    # Send to queue
-    # send_to_queue(RESULT_QUEUE, json.dumps(pkgbuild_json))
-    # send_to_queue_name(RESULT_QUEUE, json.dumps(pkgbuild_json))
-
     # Send to next function
     invoke_lambda(NEXT_FUNC, pkgbuild_json)

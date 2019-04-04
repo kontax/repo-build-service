@@ -32,7 +32,7 @@ def lambda_handler(event, context):
     # Pull latest PKGBUILD
     pkgbuild_url = f"https://raw.githubusercontent.com/{full_name}/master/{pkgbuild_location}"
     pkgbuild = requests.get(pkgbuild_url).text
-    payload = {"payload": pkgbuild}
+    payload = {"payload": pkgbuild, "url": pkgbuild_url}
 
     response = invoke_lambda(NEXT_FUNC, payload)
     print(response)
