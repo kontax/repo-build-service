@@ -159,7 +159,7 @@ Resources:
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !Ref BuildQueue
-        ### TODO: BUILD TASK POLICY ###
+        - !GetAtt ExtractRole.Arn
       Environment:
         Variables:
           BUILD_QUEUE: !GetAtt BuildQueue.Arn
@@ -199,6 +199,85 @@ Resources:
         Variables:
           BUILD_FUNC: !GetAtt BuildFunction.Arn
           PERSONAL_REPO: !Ref PersonalRepository
+
+  #####
+  # Roles
+  ###
+  ExtractRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ExtractRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ExtractPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessageBatch
+                  - sqs:SendMessage
+                  - ecs:RunTask
+                  - iam:GetRole
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt BuildQueue.Arn
+                  - !GetAtt PkgbuildTaskDefinition.Arn
+                  - !GetAtt BuildTaskRole.Arn
+              - Effect: Allow
+                Action:
+                  - sqs:DeleteMessage
+                  - sqs:ReceiveMessage
+                  - sqs:GetQueueAttributes
+
+  BuildTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AurPkgBuildTaskRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AurPkgBuildTaskPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:DeleteMessage
+                  - sqs:ReceiveMessage
+                  - s3:PutObject
+                  - s3:ListBucket
+                  - s3:DeleteObject
+                  - s3:PutObjectAcl
+                Resource:
+                  - !Ref BuildQueue
+                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepo ] ]
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - '*'
+              - Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+                Resource:
+                  - 'arn:aws:s3:::*'
 
   #####
   # Layers
@@ -245,8 +324,8 @@ Resources:
       NetworkMode: "awsvpc"
       RequiresCompatibilities:
         - "FARGATE"
-      TaskRoleArn: !GetAtt ### TODO: ROLE ARN
-      ExecutionRoleArn: !GetAtt ### TODO: ROLE ARN
+      TaskRoleArn: !GetAtt BuildTaskRole.Arn
+      ExecutionRoleArn: !GetAtt BuildTaskRole.Arn
       ContainerDefinitions:
         - Name: "aur-pkg-build"
           Image: "couldinho/aur-pkg-build:latest"
