@@ -159,7 +159,7 @@ Resources:
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !Ref BuildQueue
-        - !GetAtt ExtractRole.Arn
+#TODO        - !GetAtt ExtractRole.Arn
       Environment:
         Variables:
           BUILD_QUEUE: !GetAtt BuildQueue.Arn
@@ -230,13 +230,8 @@ Resources:
                   - iam:PassRole
                 Resource:
                   - !GetAtt BuildQueue.Arn
-                  - !GetAtt PkgbuildTaskDefinition.Arn
+                  - !Ref PkgbuildTaskDefinition
                   - !GetAtt BuildTaskRole.Arn
-              - Effect: Allow
-                Action:
-                  - sqs:DeleteMessage
-                  - sqs:ReceiveMessage
-                  - sqs:GetQueueAttributes
 
   BuildTaskRole:
     Type: AWS::IAM::Role
@@ -264,8 +259,8 @@ Resources:
                   - s3:DeleteObject
                   - s3:PutObjectAcl
                 Resource:
-                  - !Ref BuildQueue
-                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepo ] ]
+                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepository ] ]
+                  - !GetAtt BuildQueue.Arn
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -316,7 +311,7 @@ Resources:
       ClusterName: !Ref ECSCluster
 
   PkgbuildTaskDefinition:
-    Type: AWS::ECS::TaskDefinition"
+    Type: AWS::ECS::TaskDefinition
     Properties:
       Family: !Ref TaskDefinition
       Cpu: "4096"
@@ -335,23 +330,23 @@ Resources:
               awslogs-group: "/ecs/aur-pkg-build"
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: "ecs"
-          Environment:
+#          Environment:
             ### TODO: ENV VARS
-            - Name: "PUSHOVER_TOKEN"
-              Value: ${ssm:pushoverToken}
-            - Name: "PUSHOVER_USER"
-              Value: ${ssm:pushoverUser}
-            - Name: "REPO_NAME"
-              Value: ${env:REPO_NAME}
-            - Name: "REPO_ARCH"
-              Value: ${env:REPO_ARCH}
-            - Name: "REPO_URL"
-              Value: ${env:REPO_URL}
-            - Name: "AWS_REGION"
-              Value:
-                Ref: 'AWS::Region'
-            - Name: "SQS_QUEUE_URL"
-              Value: !Ref BuildQueue
+#            - Name: "PUSHOVER_TOKEN"
+#              Value: ${ssm:pushoverToken}
+#            - Name: "PUSHOVER_USER"
+#              Value: ${ssm:pushoverUser}
+#            - Name: "REPO_NAME"
+#              Value: ${env:REPO_NAME}
+#            - Name: "REPO_ARCH"
+#              Value: ${env:REPO_ARCH}
+#            - Name: "REPO_URL"
+#              Value: ${env:REPO_URL}
+#            - Name: "AWS_REGION"
+#              Value:
+#                Ref: 'AWS::Region'
+#            - Name: "SQS_QUEUE_URL"
+#              Value: !Ref BuildQueue
 
   #####
   # Database Tables
