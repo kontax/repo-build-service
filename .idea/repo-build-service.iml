@@ -7,7 +7,7 @@
       <sourceFolder url="file://$MODULE_DIR$/pkgbuild_retriever" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/package_updater" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fanout_starter" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/check_package_build" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/check_package" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fanout_controller" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/metapackage_builder" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/build_package" isTestSource="false" />

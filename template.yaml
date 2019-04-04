@@ -71,13 +71,14 @@ Resources:
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
       Policies:
-        ###
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PkgbuildParserFunction
       Environment:
         Variables:
           NEXT_FUNC: !GetAtt PkgbuildParserFunction.Arn
           GITHUB_WEBHOOK_SECRET: !Ref GithubWebhookSecret
       Events:
-        RetrievePkgbuild:
+        RetrievePkgbuildApi:
           Type: Api
           Properties:
             Path: /update
@@ -93,8 +94,9 @@ Resources:
       Runtime: python3.7
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
-      #Policies:
-      ###
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PkgbuildFanoutStarterFunction
       Environment:
         Variables:
           NEXT_FUNC: !GetAtt PkgbuildFanoutStarterFunction.Arn
@@ -112,6 +114,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
+        - SQSSendMessagePolicy:
+            QueueName: !Ref FanoutQueue
       Environment:
         Variables:
           FANOUT_STATUS: !Ref FanoutStatusTable
@@ -123,11 +127,15 @@ Resources:
       FunctionName: check-package-build
       Description: Checks each package on the queue and decides whether to build or ignore it
       Runtime: python3.7
-      CodeUri: check_package_build
-      Handler: check_package.lambda_handler
+      CodeUri: check_package
+      Handler: package_checker.lambda_handler
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref PackageData
+        - LambdaInvokePolicy:
+            FunctionName: !Ref FanoutControllerFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BuildFunction
       Environment:
         Variables:
           FANOUT_CONTROLLER: !GetAtt FanoutControllerFunction.Arn
@@ -135,9 +143,10 @@ Resources:
           PERSONAL_REPO: !Ref PersonalRepository
           BUILD_FUNC: !GetAtt BuildFunction.Arn
       Events:
-        Type: SQS
-        Properties:
-          Queue: !GetAtt FanoutQueue.Arn
+        FanoutQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FanoutQueue.Arn
 
   BuildFunction:
     Type: AWS::Serverless::Function
@@ -147,6 +156,10 @@ Resources:
       Runtime: python3.7
       CodeUri: build_package
       Handler: build.lambda_handler
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !Ref BuildQueue
+        ### TODO: BUILD TASK POLICY ###
       Environment:
         Variables:
           BUILD_QUEUE: !GetAtt BuildQueue.Arn
@@ -164,6 +177,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
+        - LambdaInvokePolicy:
+            FunctionName: !Ref MetapackageBuilderFunction
       Environment:
         Variables:
           FANOUT_STATUS: !Ref FanoutStatus
@@ -178,7 +193,8 @@ Resources:
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
       Policies:
-        ###
+        - LambdaInvokePolicy:
+            FunctionName: !Ref BuildFunction
       Environment:
         Variables:
           BUILD_FUNC: !GetAtt BuildFunction.Arn
@@ -229,8 +245,8 @@ Resources:
       NetworkMode: "awsvpc"
       RequiresCompatibilities:
         - "FARGATE"
-      TaskRoleArn: !GetAtt ### ROLE ARN
-      ExecutionRoleArn: !GetAtt ### ROLE ARN
+      TaskRoleArn: !GetAtt ### TODO: ROLE ARN
+      ExecutionRoleArn: !GetAtt ### TODO: ROLE ARN
       ContainerDefinitions:
         - Name: "aur-pkg-build"
           Image: "couldinho/aur-pkg-build:latest"
@@ -241,6 +257,7 @@ Resources:
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: "ecs"
           Environment:
+            ### TODO: ENV VARS
             - Name: "PUSHOVER_TOKEN"
               Value: ${ssm:pushoverToken}
             - Name: "PUSHOVER_USER"
@@ -286,26 +303,14 @@ Resources:
         ReadCapacityUnits: 3
         WriteCapacityUnits: 3
 
-#  HelloWorldFunction:
-#    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
-#    Properties:
-#      CodeUri: src/
-#      Handler: app.lambda_handler
-#      Runtime: python3.7
-#      Events:
-#        HelloWorld:
-#          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-#          Properties:
-#            Path: /hello
-#            Method: get
-
 Outputs:
+
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-#  HelloWorldApi:
-#    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-#    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  RetrievePkgbuildApi:
+    Description: "API Gateway endpoint URL for Prod stage for PKGBUILD Retriever function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/update"
   PackageUpdateFunction:
     Description: "Hello World Lambda Function ARN"
     Value: !GetAtt PackageUpdateFunction.Arn
