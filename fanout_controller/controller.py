@@ -17,10 +17,19 @@ def lambda_handler(event, context):
     # The dynamoDB table containing the running status of each package
     dynamo = get_dynamo_resource()
     fanout_table = dynamo.Table(FANOUT_STATUS)
-    fanout_table.update_item(Key={'PackageName': package_state['PackageName'], 'Status': package_state['Status']})
+    fanout_table.update_item(
+        Key={'PackageName': package_state['PackageName']},
+        UpdateExpression="set BuildStatus = :s",
+        ExpressionAttributeValues={
+            ':s': package_state['BuildStatus']
+        }
+    )
 
     # Delete completed items
-    fanout_table.delete_item(Key={"Status": Status.Complete.name})
+    all_items = fanout_table.scan()
+    deleted_items = [item for item in all_items['Items'] if item['BuildStatus'] == Status.Complete.name]
+    for item in deleted_items:
+        fanout_table.delete_item(Key={"PackageName": item['PackageName']})
 
     # Check remaining items
     resp = fanout_table.scan()
@@ -31,7 +40,7 @@ def lambda_handler(event, context):
 
     # Otherwise if everything has completed, invoke the meta-package building function
     resp = fanout_table.query(KeyConditionExpression=Key('PackageName').eq("METAPACKAGE_URL"))
-    invoke_lambda(METAPACKAGE_BUILDER, {"url": resp['Items'][0]})
+    invoke_lambda(METAPACKAGE_BUILDER, {"url": resp['Items'][0]['BuildStatus']})
 
     return return_code(200, {"status": "All packages built"})
 

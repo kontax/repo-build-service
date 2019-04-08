@@ -19,11 +19,11 @@ def lambda_handler(event, context):
     table = dynamo.Table(FANOUT_STATUS)
 
     # Store the metapackage URL for building on completion
-    table.update_item(Key={'PackageName': "METAPACKGE_URL", 'Status': url})
+    table.put_item(Item={"PackageName": "METAPACKAGE_URL", "BuildStatus": url})
 
     # Put each one in the FANOUT_STATUS table with an "Initialized" status and add it to the queue
     for dep in deps:
-        table.update_item(Key={'PackageName': dep, 'Status': Status.Initialized.name})
+        table.put_item(Item={'PackageName': dep, 'BuildStatus': Status.Initialized.name})
         send_to_queue(FANOUT_QUEUE, dep)
 
     return {

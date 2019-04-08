@@ -1,0 +1,13 @@
+{
+    "TableName": "fanout-status",
+    "KeySchema": [
+        { "AttributeName": "PackageName", "KeyType": "HASH" }
+    ],
+    "AttributeDefinitions": [
+        { "AttributeName": "PackageName", "AttributeType": "S" }
+    ],
+    "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+    }
+}

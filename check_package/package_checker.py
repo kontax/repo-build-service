@@ -26,14 +26,14 @@ def lambda_handler(event, context):
     # If they're built then ignore
     # Send it to the fanout controller marking its completion
     if len(resp['Items']) > 0:
-        invoke_lambda(FANOUT_CONTROLLER, {"PackageName": package, "Status": Status.Complete.name})
+        invoke_lambda(FANOUT_CONTROLLER, {"PackageName": package, "BuildStatus": Status.Complete.name})
         return return_code(200, {'status': 'Package exists already'})
 
     # If they're not then add them to the build queue and start the build VM
     invoke_lambda(BUILD_FUNC, {"PackageName": package, "Repo": PERSONAL_REPO})
 
     # Update the status to say the package is building
-    invoke_lambda(FANOUT_CONTROLLER, {"PackageName": package, "Status": Status.Building.name})
+    invoke_lambda(FANOUT_CONTROLLER, {"PackageName": package, "BuildStatus": Status.Building.name})
 
     return return_code(200, {'status': 'Package sent to build queue'})
 
