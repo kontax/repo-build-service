@@ -6,31 +6,45 @@ Description: >
 Parameters:
   PersonalRepository:
     Type: String
+    Description: The URL of the location of the personal repository
+  RepoName:
+    Type: String
+    Description: The name of the personal repository - usually the name of the DB file without the extension
+  RepoArch:
+    Type: String
+    Description: The architecture to build the packages for
+    Default: "x86_64"
   PackageTable:
     Type: String
+    Description: Name of the table containing the list of existing Arch packages
     Default: package-list
   FanoutStatusTable:
     Type: String
+    Description: Name of the table used to control the fan-in/out status of package building
     Default: fanout-status
   RepositoryCountries:
     Type: String
+    Description: Comma-separated country codes used for finding the best mirror for package downloads
     Default: "IE,GB"
   GithubWebhookSecret:
     Type: String
+    Description: Secret key used within the Github webhook
     Default: ABCD1234
   ECSCluster:
     Type: String
+    Description: Name of the cluster used to contain the package building ECS tasks
     Default: "aur-pkgbuild-cluster"
   TaskDefinition:
     Type: String
+    Description: Name of the ECS task used to build packages
     Default: "aur-pkgbuild-task"
-
-  # ECS Task Parameters
   PushoverToken:
     Type: String
+    Description: Token used to notify built packages via Pushover
     Default: '{{resolve:ssm:pushoverToken:1}}'
   PushoverUser:
     Type: String
+    Description: User used to notify built packages via Pushover
     Default: '{{resolve:ssm:pushoverUser:1}}'
 
 Globals:
@@ -343,23 +357,14 @@ Resources:
               Value: !Ref PushoverToken
             - Name: "PUSHOVER_USER"
               Value: !Ref PushoverUser
-#          Environment:
-            ### TODO: ENV VARS
-#            - Name: "PUSHOVER_TOKEN"
-#              Value: ${ssm:pushoverToken}
-#            - Name: "PUSHOVER_USER"
-#              Value: ${ssm:pushoverUser}
-#            - Name: "REPO_NAME"
-#              Value: ${env:REPO_NAME}
-#            - Name: "REPO_ARCH"
-#              Value: ${env:REPO_ARCH}
-#            - Name: "REPO_URL"
-#              Value: ${env:REPO_URL}
-#            - Name: "AWS_REGION"
-#              Value:
-#                Ref: 'AWS::Region'
-#            - Name: "SQS_QUEUE_URL"
-#              Value: !Ref BuildQueue
+            - Name: "REPO_NAME"
+              Value: !Ref RepoName
+            - Name: "REPO_ARCH"
+              Value: !Ref RepoArch
+            - Name: "SQS_QUEUE_URL"
+              Value: !Ref BuildQueue
+            - Name: "AWS_REGION"
+              Value: !Ref AWS::Region
 
   #####
   # Database Tables
