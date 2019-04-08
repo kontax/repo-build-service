@@ -25,6 +25,14 @@ Parameters:
     Type: String
     Default: "aur-pkgbuild-task"
 
+  # ECS Task Parameters
+  PushoverToken:
+    Type: String
+    Default: '{{resolve:ssm:pushoverToken:1}}'
+  PushoverUser:
+    Type: String
+    Default: '{{resolve:ssm:pushoverUser:1}}'
+
 Globals:
   Function:
     Timeout: 3
@@ -156,10 +164,10 @@ Resources:
       Runtime: python3.7
       CodeUri: build_package
       Handler: build.lambda_handler
+      Role: !GetAtt ExtractRole.Arn
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !Ref BuildQueue
-#TODO        - !GetAtt ExtractRole.Arn
       Environment:
         Variables:
           BUILD_QUEUE: !GetAtt BuildQueue.Arn
@@ -330,6 +338,11 @@ Resources:
               awslogs-group: "/ecs/aur-pkg-build"
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: "ecs"
+          Environment:
+            - Name: "PUSHOVER_TOKEN"
+              Value: !Ref PushoverToken
+            - Name: "PUSHOVER_USER"
+              Value: !Ref PushoverUser
 #          Environment:
             ### TODO: ENV VARS
 #            - Name: "PUSHOVER_TOKEN"
