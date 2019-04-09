@@ -27,8 +27,12 @@ Parameters:
     Default: "fanout-status"
   FanoutQueueName:
     Type: String
-    Description: Name of the queue used for the fanout messages
+    Description: Name of the queue used for the fan-out messages
     Default: "fanout-queue"
+  FanoutControllerName:
+    Type: String
+    Description: Name of the function used to control the fan-in / fan-out state
+    Default: "fanout-controller"
   BuildQueueName:
     Type: String
     Description: Name of the queue used for the build queue
@@ -215,7 +219,7 @@ Resources:
   FanoutControllerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: fanout-controller
+      FunctionName: !Ref FanoutControllerName
       Description: Manages the parallel building of packages via the FanoutStatus table
       Runtime: python3.7
       CodeUri: fanout_controller
@@ -311,6 +315,11 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - '*'
+              - Effect: Allow
+                Action:
                   - sqs:DeleteMessage
                   - sqs:ReceiveMessage
                   - s3:PutObject
@@ -318,7 +327,7 @@ Resources:
                   - s3:DeleteObject
                   - s3:PutObjectAcl
                 Resource:
-                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepository ] ]
+                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepoBucket, '/*' ] ]
                   - !GetAtt BuildQueue.Arn
               - Effect: Allow
                 Action:
@@ -402,6 +411,8 @@ Resources:
               Value: !Ref BuildQueue
             - Name: "AWS_REGION"
               Value: !Ref AWS::Region
+            - Name: "FANOUT_CONTROLLER"
+              Value: !Ref FanoutControllerName
 
   #####
   # Database Tables
