@@ -15,7 +15,7 @@ def lambda_handler(event, context):
     package_dict = event
 
     _start_ecs_task(ECS_CLUSTER, TASK_DEFN)
-    send_to_queue(BUILD_QUEUE, package_dict)
+    send_to_queue(BUILD_QUEUE, json.dumps(package_dict))
 
     return return_code(200, {'status': 'Package building'})
 

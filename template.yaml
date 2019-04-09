@@ -205,7 +205,7 @@ Resources:
         Variables:
           BUILD_QUEUE: !Ref BuildQueue
           ECS_CLUSTER: !Ref ECSCluster
-          TASK_DEFN: !Ref TaskDefinition
+          TASK_DEFN: !Ref PkgbuildTaskDefinition
       Layers:
         - !Ref AwsLayer
 
