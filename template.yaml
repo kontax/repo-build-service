@@ -281,6 +281,13 @@ Resources:
                   - !GetAtt BuildQueue.Arn
                   - !Ref PkgbuildTaskDefinition
                   - !GetAtt BuildTaskRole.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  '*'
 
   BuildTaskRole:
     Type: AWS::IAM::Role
