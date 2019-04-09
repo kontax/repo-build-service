@@ -23,7 +23,9 @@ def lambda_handler(event, context):
 
     # Put each one in the FANOUT_STATUS table with an "Initialized" status and add it to the queue
     for dep in deps:
-        table.put_item(Item={'PackageName': dep, 'BuildStatus': Status.Initialized.name})
+        message = {'PackageName': dep, 'BuildStatus': Status.Initialized.name}
+        print(message)
+        table.put_item(Item=message)
         send_to_queue(FANOUT_QUEUE, dep)
 
     return {

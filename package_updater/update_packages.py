@@ -35,6 +35,7 @@ def lambda_handler(event, context):
     response_body['deleted'] = len(to_delete)
 
     # Return the number of changes being made
+    print(response_body)
     return return_code(200, response_body)
 
 

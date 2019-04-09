@@ -17,11 +17,19 @@ Parameters:
   PackageTable:
     Type: String
     Description: Name of the table containing the list of existing Arch packages
-    Default: package-list
+    Default: "package-list"
   FanoutStatusTable:
     Type: String
     Description: Name of the table used to control the fan-in/out status of package building
-    Default: fanout-status
+    Default: "fanout-status"
+  FanoutQueueName:
+    Type: String
+    Description: Name of the queue used for the fanout messages
+    Default: "fanout-queue"
+  BuildQueueName:
+    Type: String
+    Description: Name of the queue used for the build queue
+    Default: "aur-pkg-build"
   RepositoryCountries:
     Type: String
     Description: Comma-separated country codes used for finding the best mirror for package downloads
@@ -139,11 +147,11 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
         - SQSSendMessagePolicy:
-            QueueName: !Ref FanoutQueue
+            QueueName: !Ref FanoutQueueName
       Environment:
         Variables:
           FANOUT_STATUS: !Ref FanoutStatusTable
-          FANOUT_QUEUE: !GetAtt FanoutQueue.Arn
+          FANOUT_QUEUE: !Ref FanoutQueue
       Layers:
         - !Ref AwsLayer
 
@@ -187,10 +195,10 @@ Resources:
       Role: !GetAtt ExtractRole.Arn
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !Ref BuildQueue
+            QueueName: !Ref BuildQueueName
       Environment:
         Variables:
-          BUILD_QUEUE: !GetAtt BuildQueue.Arn
+          BUILD_QUEUE: !Ref BuildQueue
           ECS_CLUSTER: !Ref ECSCluster
           TASK_DEFN: !Ref TaskDefinition
       Layers:
@@ -328,12 +336,12 @@ Resources:
   FanoutQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: "fanout-queue"
+      QueueName: !Ref FanoutQueueName
 
   BuildQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: "aur-pkg-build"
+      QueueName: !Ref BuildQueueName
       VisibilityTimeout: 600
 
   #####

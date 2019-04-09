@@ -14,7 +14,7 @@ PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
 
 def lambda_handler(event, context):
     print(event)
-    package = event
+    package = event['Records'][0]['body']
 
     # The dynamoDB table containing the running status of each package
     dynamo = get_dynamo_resource()
