@@ -7,6 +7,9 @@ Parameters:
   PersonalRepository:
     Type: String
     Description: The URL of the location of the personal repository
+  PersonalRepoBucket:
+    Type: String
+    Description: The name of the bucket of the personal repository
   RepoName:
     Type: String
     Description: The name of the personal repository - usually the name of the DB file without the extension
@@ -178,7 +181,7 @@ Resources:
         Variables:
           FANOUT_CONTROLLER: !GetAtt FanoutControllerFunction.Arn
           PACKAGE_TABLE: !Ref PackageTable
-          PERSONAL_REPO: !Ref PersonalRepository
+          PERSONAL_REPO: !Ref PersonalRepoBucket
           BUILD_FUNC: !GetAtt BuildFunction.Arn
       Events:
         FanoutQueue:
@@ -245,7 +248,7 @@ Resources:
       Environment:
         Variables:
           BUILD_FUNC: !GetAtt BuildFunction.Arn
-          PERSONAL_REPO: !Ref PersonalRepository
+          PERSONAL_REPO: !Ref PersonalRepoBucket
       Layers:
         - !Ref AwsLayer
 

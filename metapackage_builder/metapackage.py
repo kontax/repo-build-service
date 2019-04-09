@@ -1,8 +1,6 @@
 import json
 import os
 
-from botocore.vendored import requests
-
 from aws import invoke_lambda
 
 BUILD_FUNC = os.environ.get('BUILD_FUNC')
@@ -11,12 +9,8 @@ PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
 
 def lambda_handler(event, context):
     print(event)
-
     pkgbuild_url = event['url']
-    pkgbuild = requests.get(pkgbuild_url).text
-
-    invoke_lambda(BUILD_FUNC, {"PackageName": "PKGBUILD_METAPACKGE", "Repo": PERSONAL_REPO, "PKGBUILD": pkgbuild})
-
+    invoke_lambda(BUILD_FUNC, {"PackageName": "PKGBUILD_METAPACKGE", "Repo": PERSONAL_REPO, "url": pkgbuild_url})
     return return_code(200, {'status': 'Metapackage sent to build queue'})
 
 
