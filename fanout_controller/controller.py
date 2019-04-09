@@ -36,6 +36,7 @@ def lambda_handler(event, context):
 
     # If items are still running quit and wait for the next invocation
     if len(resp['Items']) > 1:
+        print(f"{len(resp['Items'])} still in table")
         return return_code(200, {"status": "Items are still running"})
 
     # Otherwise if everything has completed, invoke the meta-package building function

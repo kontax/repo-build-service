@@ -102,6 +102,7 @@ Resources:
       Runtime: python3.7
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
+      Timeout: 20
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref PkgbuildParserFunction
@@ -126,6 +127,7 @@ Resources:
       Runtime: python3.7
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
+      Timeout: 10
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref PkgbuildFanoutStarterFunction
@@ -143,6 +145,7 @@ Resources:
       Runtime: python3.7
       CodeUri: fanout_starter
       Handler: starter.lambda_handler
+      Timeout: 60
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
@@ -163,6 +166,7 @@ Resources:
       Runtime: python3.7
       CodeUri: check_package
       Handler: package_checker.lambda_handler
+      Timeout: 10
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref PackageData
@@ -192,6 +196,7 @@ Resources:
       Runtime: python3.7
       CodeUri: build_package
       Handler: build.lambda_handler
+      Timeout: 60
       Role: !GetAtt ExtractRole.Arn
       Policies:
         - SQSSendMessagePolicy:
@@ -212,6 +217,7 @@ Resources:
       Runtime: python3.7
       CodeUri: fanout_controller
       Handler: controller.lambda_handler
+      Timeout: 30
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
@@ -232,6 +238,7 @@ Resources:
       Runtime: python3.7
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
+      Timeout: 20
       Policies:
         - LambdaInvokePolicy:
             FunctionName: !Ref BuildFunction
