@@ -9,8 +9,8 @@ PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
 
 def lambda_handler(event, context):
     print(event)
-    pkgbuild_url = event['url']
-    invoke_lambda(BUILD_FUNC, {"PackageName": "PKGBUILD_METAPACKGE", "Repo": PERSONAL_REPO, "url": pkgbuild_url})
+    pkgbuild_url = event['git_url']
+    invoke_lambda(BUILD_FUNC, {"PackageName": "GIT_REPO", "Repo": PERSONAL_REPO, "git_url": pkgbuild_url})
     return return_code(200, {'status': 'Metapackage sent to build queue'})
 
 

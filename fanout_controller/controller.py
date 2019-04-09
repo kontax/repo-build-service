@@ -41,9 +41,9 @@ def lambda_handler(event, context):
 
     # Otherwise if everything has completed, invoke the meta-package building function
     print("All packages finished - invoking the metapackage builder")
-    resp = fanout_table.query(KeyConditionExpression=Key('PackageName').eq("METAPACKAGE_URL"))
-    invoke_lambda(METAPACKAGE_BUILDER, {"url": resp['Items'][0]['BuildStatus']})
-    fanout_table.delete_item(Key={"PackageName": "METAPACKAGE_URL"})
+    resp = fanout_table.query(KeyConditionExpression=Key('PackageName').eq("GIT_REPO"))
+    invoke_lambda(METAPACKAGE_BUILDER, {"git_url": resp['Items'][0]['BuildStatus']})
+    fanout_table.delete_item(Key={"PackageName": "GIT_REPO"})
 
     return return_code(200, {"status": "All packages built"})
 
