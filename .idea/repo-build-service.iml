@@ -11,8 +11,6 @@
       <sourceFolder url="file://$MODULE_DIR$/fanout_controller" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/metapackage_builder" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/build_package" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/pkg_builder" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/pkg_checker" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
     </content>
     <orderEntry type="inheritedJdk" />
@@ -31,7 +29,7 @@
           <value>
             <DeploySamConfig>
               <option name="autoExecute" value="true" />
-              <option name="bucketName" value="couldinho-arch-aur" />
+              <option name="bucketName" value="coulson-sam-test" />
               <option name="stackName" value="repo-build-service" />
               <option name="useContainer" value="true" />
             </DeploySamConfig>

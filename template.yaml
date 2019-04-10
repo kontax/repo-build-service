@@ -113,7 +113,6 @@ Resources:
       FunctionName: pkgbuild-retriever
       Description: API for pulling the PKGBUILD from Github
       Runtime: python3.7
-      Tracing: Active
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
       Timeout: 20
@@ -140,7 +139,6 @@ Resources:
       FunctionName: pkgbuild-parser
       Description: Parses the PKGBUILD and extracts a list of packages from it
       Runtime: python3.7
-      Tracing: Active
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
       Timeout: 10
@@ -159,7 +157,6 @@ Resources:
       FunctionName: fanout-starter
       Description: A starter function to set up the fan-out and fan-in of building packages
       Runtime: python3.7
-      Tracing: Active
       CodeUri: fanout_starter
       Handler: starter.lambda_handler
       Timeout: 60
@@ -181,7 +178,6 @@ Resources:
       FunctionName: check-package
       Description: Checks each package on the queue and decides whether to build or ignore it
       Runtime: python3.7
-      Tracing: Active
       CodeUri: pkg_checker
       Handler: check_package.lambda_handler
       Timeout: 10
@@ -212,7 +208,6 @@ Resources:
       FunctionName: build-package
       Description: Starts an ECS task to build a package and adds the package to the build queue
       Runtime: python3.7
-      Tracing: Active
       CodeUri: pkg_builder
       Handler: build_package.lambda_handler
       Timeout: 60
@@ -234,7 +229,6 @@ Resources:
       FunctionName: !Ref FanoutControllerName
       Description: Manages the parallel building of packages via the FanoutStatus table
       Runtime: python3.7
-      Tracing: Active
       CodeUri: fanout_controller
       Handler: controller.lambda_handler
       Timeout: 30
@@ -256,7 +250,6 @@ Resources:
       FunctionName: metapackage-builder
       Description: Retrieves the metapackage PKGBUILD and queues it for building
       Runtime: python3.7
-      Tracing: Active
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
       Timeout: 20
@@ -278,7 +271,6 @@ Resources:
     Properties:
       StageName: prod
       EndpointConfiguration: REGIONAL
-      TracingEnabled: true
       DefinitionBody:
         swagger: 2.0
         info:
@@ -343,8 +335,6 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                  - xray:PutTraceSegments
-                  - xray:PutTelemetryRecords
                 Resource:
                   '*'
 
@@ -386,8 +376,6 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                  - xray:PutTraceSegments
-                  - xray:PutTelemetryRecords
                 Resource:
                   - '*'
               - Effect: Allow

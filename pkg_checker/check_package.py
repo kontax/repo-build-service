@@ -1,14 +1,10 @@
 import json
 import os
 
-from aws_xray_sdk.core import patch_all
 from boto3.dynamodb.conditions import Key
 
 from aws import get_dynamo_resource, invoke_lambda
 from enums import Status
-
-if "AWS_SAM_LOCAL" not in os.environ:
-    patch_all()
 
 FANOUT_CONTROLLER = os.environ.get('FANOUT_CONTROLLER')
 PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
