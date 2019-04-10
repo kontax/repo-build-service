@@ -2,8 +2,12 @@ import json
 import os
 
 import boto3
+from aws_xray_sdk.core import patch_all
 
 from aws import send_to_queue
+
+if "AWS_SAM_LOCAL" not in os.environ:
+    patch_all()
 
 BUILD_QUEUE = os.environ.get('BUILD_QUEUE')
 ECS_CLUSTER = os.environ.get('ECS_CLUSTER')
