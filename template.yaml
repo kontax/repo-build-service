@@ -165,14 +165,14 @@ Resources:
       Layers:
         - !Ref AwsLayer
 
-  CheckPackageBuildFunction:
+  CheckPackageFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: check-package-build
+      FunctionName: check-package
       Description: Checks each package on the queue and decides whether to build or ignore it
       Runtime: python3.7
-      CodeUri: check_package
-      Handler: package_checker.lambda_handler
+      CodeUri: pkg_checker
+      Handler: check_package.lambda_handler
       Timeout: 10
       Policies:
         - DynamoDBReadPolicy:
@@ -201,8 +201,8 @@ Resources:
       FunctionName: build-package
       Description: Starts an ECS task to build a package and adds the package to the build queue
       Runtime: python3.7
-      CodeUri: build_package
-      Handler: build.lambda_handler
+      CodeUri: pkg_builder
+      Handler: build_package.lambda_handler
       Timeout: 60
       Role: !GetAtt ExtractRole.Arn
       Policies:
