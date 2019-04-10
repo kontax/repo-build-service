@@ -4,6 +4,8 @@ Description: >
   Template used for building AUR packages and adding them to a custom S3-based repository.
 
 Parameters:
+
+  # Details of the repository containing built packages within S3
   PersonalRepository:
     Type: String
     Description: The URL of the location of the personal repository
@@ -17,6 +19,8 @@ Parameters:
     Type: String
     Description: The architecture to build the packages for
     Default: "x86_64"
+
+  # Names of DynamoDB tables and SQS queues
   PackageTable:
     Type: String
     Description: Name of the table containing the list of existing Arch packages
@@ -37,22 +41,18 @@ Parameters:
     Type: String
     Description: Name of the queue used for the build queue
     Default: "aur-pkg-build"
+
+  # Reflector variables
   RepositoryCountries:
     Type: String
     Description: Comma-separated country codes used for finding the best mirror for package downloads
     Default: "IE,GB"
+
+  # Secret keys
   GithubWebhookSecret:
     Type: String
     Description: Secret key used within the Github webhook
     Default: ABCD1234
-  ECSCluster:
-    Type: String
-    Description: Name of the cluster used to contain the package building ECS tasks
-    Default: "aur-pkgbuild-cluster"
-  TaskDefinition:
-    Type: String
-    Description: Name of the ECS task used to build packages
-    Default: "aur-pkgbuild-task"
   PushoverToken:
     Type: String
     Description: Token used to notify built packages via Pushover
@@ -62,14 +62,20 @@ Parameters:
     Description: User used to notify built packages via Pushover
     Default: '{{resolve:ssm:pushoverUser:1}}'
 
+  # Names of the ECS objects
+  ECSCluster:
+    Type: String
+    Description: Name of the cluster used to contain the package building ECS tasks
+    Default: "aur-pkgbuild-cluster"
+  TaskDefinition:
+    Type: String
+    Description: Name of the ECS task used to build packages
+    Default: "aur-pkgbuild-task"
+
 Globals:
   Function:
     Timeout: 3
     Runtime: python3.7
-    Environment:
-      Variables:
-        PACKAGE_TABLE:
-          Ref: PackageData
 
 Resources:
 
