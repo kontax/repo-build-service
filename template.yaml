@@ -144,17 +144,17 @@ Resources:
       Timeout: 10
       Policies:
         - LambdaInvokePolicy:
-            FunctionName: !Ref PkgbuildFanoutStarterFunction
+            FunctionName: !Ref FanoutStarterFunction
       Environment:
         Variables:
-          NEXT_FUNC: !GetAtt PkgbuildFanoutStarterFunction.Arn
+          NEXT_FUNC: !GetAtt FanoutStarterFunction.Arn
       Layers:
         - !Ref AwsLayer
 
-  PkgbuildFanoutStarterFunction:
+  FanoutStarterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: pkgbuild-fanout-starter
+      FunctionName: fanout-starter
       Description: A starter function to set up the fan-out and fan-in of building packages
       Runtime: python3.7
       CodeUri: fanout_starter
