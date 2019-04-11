@@ -71,6 +71,10 @@ Parameters:
     Type: String
     Description: Name of the ECS task used to build packages
     Default: "aur-pkgbuild-task"
+  RepoUpdater:
+    Type: String
+    Description: Name of ECS task used to update repository
+    Default: "aur-repo-update-task"
 
 Globals:
   Function:
@@ -104,6 +108,28 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(6 hours)
+      Layers:
+        - !Ref AwsLayer
+
+  RepoUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: repo-update
+      Description: Scheduled updating of the personal repository
+      Runtime: python3.7
+      CodeUri: repo_updater
+      Handler: update_repo.lambda_handler
+      Timeout: 60
+      Role: !GetAtt ExtractRole.Arn
+      Environment:
+        Variables:
+          ECS_CLUSTER: !Ref ECSCluster
+          TASK_DEFN: !Ref RepoUpdaterTaskDefinition
+      Events:
+        RepoUpdateSchedule:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 0 * * ? *)
       Layers:
         - !Ref AwsLayer
 
@@ -329,6 +355,7 @@ Resources:
                 Resource:
                   - !GetAtt BuildQueue.Arn
                   - !Ref PkgbuildTaskDefinition
+                  - !Ref RepoUpdaterTaskDefinition
                   - !GetAtt BuildTaskRole.Arn
               - Effect: Allow
                 Action:
@@ -455,6 +482,38 @@ Resources:
               Value: !Ref AWS::Region
             - Name: "FANOUT_CONTROLLER"
               Value: !Ref FanoutControllerName
+
+  RepoUpdaterTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref RepoUpdater
+      Cpu: "4096"
+      Memory: "8192"
+      NetworkMode: "awsvpc"
+      RequiresCompatibilities:
+        - "FARGATE"
+      TaskRoleArn: !GetAtt BuildTaskRole.Arn
+      ExecutionRoleArn: !GetAtt BuildTaskRole.Arn
+      ContainerDefinitions:
+        - Name: "aur-pkg-update"
+          Image: "couldinho/aur-pkg-update:latest"
+          LogConfiguration:
+            LogDriver: "awslogs"
+            Options:
+              awslogs-group: "/ecs/aur-pkg-update"
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: "ecs"
+          Environment:
+            - Name: "PUSHOVER_TOKEN"
+              Value: !Ref PushoverToken
+            - Name: "PUSHOVER_USER"
+              Value: !Ref PushoverUser
+            - Name: "REPO_NAME"
+              Value: !Ref RepoName
+            - Name: "REMOTE_PATH"
+              Value: !Join [ "", [ "s3://", !Ref PersonalRepoBucket, "/", !Ref RepoArch ] ]
+            - Name: "AWS_REGION"
+              Value: !Ref AWS::Region
 
   #####
   # Database Tables
