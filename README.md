@@ -1,8 +1,8 @@
-# AWS
+# Repo Build Service
 
-This is a sample template for AWS - Below is a brief explanation of what we have generated for you:
+An AWS lambda service used to keep a personal repository of Arch packages up to date.
 
-```bash
+```
 .
 ├── README.md                   <-- This instructions file
 ├── event.json                  <-- API Gateway Proxy Integration event payload
@@ -19,9 +19,12 @@ This is a sample template for AWS - Below is a brief explanation of what we have
 
 ## Requirements
 
-* AWS CLI already configured with Administrator permission
-* [Python 3 installed](https://www.python.org/downloads/)
-* [Docker installed](https://www.docker.com/community-edition)
+* AWS Administrator access
+* [Python 3](https://www.python.org/downloads/)
+* [Docker](https://www.docker.com/community-edition)
+* [AWS SAM CLI](https://github.com/awslabs/aws-sam-cli)
+* [Personal repository in S3](https://disconnected.systems/blog/archlinux-repo-in-aws-bucket)
+* [Meta-packages stored in GitHub](https://github.com/kontax/arch-packages)
 
 ## Setup process
 

@@ -1,13 +1,8 @@
 import json
 import os
 
-from aws_xray_sdk.core import patch_all
-
 from aws import get_dynamo_resource, send_to_queue
 from enums import Status
-
-if "AWS_SAM_LOCAL" not in os.environ:
-    patch_all()
 
 FANOUT_STATUS = os.environ.get('FANOUT_STATUS')
 FANOUT_QUEUE = os.environ.get('FANOUT_QUEUE')
