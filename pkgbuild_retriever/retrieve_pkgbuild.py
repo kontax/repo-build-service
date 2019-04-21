@@ -27,6 +27,7 @@ def lambda_handler(event, context):
     full_name = commit_parser.get_full_name(commit_payload)
     pkgbuild_location = commit_parser.get_pkgbuild_location(commit_payload)
     if pkgbuild_location is None:
+        print("No PKGBUILD commit found, exiting")
         return {
             'statusCode': 401,
             'headers': { 'Content-Type': 'text/plain' },
@@ -34,6 +35,7 @@ def lambda_handler(event, context):
         }
 
     # Pull latest PKGBUILD
+    print(f"Found PKGBUILD at {pkgbuild_location}")
     pkgbuild_url = f"https://raw.githubusercontent.com/{full_name}/master/{pkgbuild_location}"
     pkgbuild = requests.get(pkgbuild_url).text
     github_repository = f"https://github.com/{full_name}.git"
