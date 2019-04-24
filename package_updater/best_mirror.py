@@ -25,7 +25,7 @@ def _get_best_mirror(countries, refl):
     sys.stdout = result
 
     # Parse the options for reflector
-    options = ["-p", "https", "-f", "1", "--sort", "rate", "--age", "12"]
+    options = ["-p", "http", "-f", "1", "--sort", "rate", "--age", "12"]
     for country in countries:
         options.append("-c")
         options.append(country)
