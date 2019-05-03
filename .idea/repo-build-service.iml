@@ -29,7 +29,7 @@
           <value>
             <DeploySamConfig>
               <option name="autoExecute" value="true" />
-              <option name="bucketName" value="coulson-sam-test" />
+              <option name="bucketName" value="coulson-sam-deployments" />
               <option name="stackName" value="repo-build-service" />
               <option name="useContainer" value="true" />
             </DeploySamConfig>

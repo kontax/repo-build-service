@@ -95,6 +95,7 @@ Resources:
       CodeUri: package_updater
       Handler: update_packages.lambda_handler
       Timeout: 600
+      MemorySize: 512
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PackageData
