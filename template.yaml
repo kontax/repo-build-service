@@ -61,6 +61,13 @@ Parameters:
     Type: String
     Description: User used to notify built packages via Pushover
     Default: '{{resolve:ssm:pushoverUser:1}}'
+  AurKeyParam:
+    Type: String
+    Description: The name of the private key within the Parameter Store used to sign built packages
+    Default: "aur_key"
+  AurKeyDecrypt:
+    Type: String
+    Description: The KMS key used to encrypt/decrypt the parameter store key above (key/{guid})
 
   # Names of the ECS objects
   ECSCluster:
@@ -411,6 +418,16 @@ Resources:
                   - s3:ListAllMyBuckets
                 Resource:
                   - 'arn:aws:s3:::*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource:
+                  Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AurKeyParam}
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                Resource:
+                  Fn::Sub: arn:aws:kms:${AWS::Region}:${AWS::AccountId}:${AurKeyDecrypt}
 
   #####
   # Layers
@@ -483,6 +500,8 @@ Resources:
               Value: !Ref AWS::Region
             - Name: "FANOUT_CONTROLLER"
               Value: !Ref FanoutControllerName
+            - Name: "AUR_KEY"
+              Value: !Ref AurKeyParam
 
   RepoUpdaterTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -515,6 +534,8 @@ Resources:
               Value: !Join [ "", [ "s3://", !Ref PersonalRepoBucket, "/", !Ref RepoArch ] ]
             - Name: "AWS_REGION"
               Value: !Ref AWS::Region
+            - Name: "AUR_KEY"
+              Value: !Ref AurKeyParam
 
   #####
   # Database Tables
