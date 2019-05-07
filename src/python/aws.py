@@ -76,6 +76,24 @@ def start_ecs_task(cluster, task_definition):
     print(f"Run task complete: {str(response)}")
 
 
+def get_running_task_count(cluster, task_definition):
+    """ Retrieves the number of ECS tasks for a specified cluster and task family that are currently either
+    running or are in a pending state waiting to be run.
+
+    :param (str) cluster: The name of the cluster containing the running tasks
+    :param (str) task_definition: The family of task to search for
+    :return: The number of tasks in a running/soon to be running state
+    :rtype: int
+    """
+    client = boto3.client('ecs')
+    response = client.list_tasks(
+        cluster=cluster,
+        family=task_definition,
+        desiredStatus="RUNNING"
+    )
+    return len(response['taskArns'])
+
+
 def get_dynamo_resource():
     """Get a dynamodb resource depending on which environment the function is running in"""
     if os.getenv("AWS_SAM_LOCAL"):
