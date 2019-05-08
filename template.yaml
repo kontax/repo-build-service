@@ -35,8 +35,12 @@ Parameters:
     Default: "fanout-controller"
   BuildQueueName:
     Type: String
-    Description: Name of the queue used for the build queue
+    Description: Name of the queue the ECS tasks use to pull packages from and build
     Default: "aur-pkg-build"
+  FanoutQueueName:
+    Type: String
+    Description: Name of the queue used for controlling the fanout status of each package
+    Default: "fanout-queue"
 
   # Reflector variables
   RepositoryCountries:
@@ -200,14 +204,13 @@ Resources:
             TableName: !Ref FanoutStatusTable
         - DynamoDBReadPolicy:
             TableName: !Ref PackageData
-        - LambdaInvokePolicy:
-            FunctionName: !Ref FanoutControllerFunction
+        - SQSSendMessagePolicy:
+            QueueName: !Ref FanoutQueueName
         - LambdaInvokePolicy:
             FunctionName: !Ref BuildFunction
       Environment:
         Variables:
-          FANOUT_STATUS: !Ref FanoutStatusTable
-          FANOUT_CONTROLLER: !GetAtt FanoutControllerFunction.Arn
+          FANOUT_QUEUE: !Ref FanoutQueue
           PACKAGE_TABLE: !Ref PackageTable
           PERSONAL_REPO: !Ref PersonalRepoBucket
           BUILD_FUNC: !GetAtt BuildFunction.Arn
@@ -257,6 +260,11 @@ Resources:
           METAPACKAGE_BUILDER: !GetAtt MetapackageBuilderFunction.Arn
       Layers:
         - !Ref AwsLayer
+      Events:
+        FanoutQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FanoutQueue.Arn
 
   MetapackageBuilderFunction:
     Type: AWS::Serverless::Function
@@ -380,9 +388,9 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - lambda:InvokeFunction
+                  - sqs:SendMessage
                 Resource:
-                  - '*'
+                  - !GetAtt FanoutQueue.Arn
               - Effect: Allow
                 Action:
                   - sqs:DeleteMessage
@@ -434,6 +442,11 @@ Resources:
   #####
   # Queue's
   ###
+  FanoutQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref FanoutQueueName
+
   BuildQueue:
     Type: AWS::SQS::Queue
     Properties:
@@ -481,8 +494,8 @@ Resources:
               Value: !Ref BuildQueue
             - Name: "AWS_REGION"
               Value: !Ref AWS::Region
-            - Name: "FANOUT_CONTROLLER"
-              Value: !Ref FanoutControllerName
+            - Name: "FANOUT_QUEUE"
+              Value: !Ref FanoutQueue
             - Name: "AUR_KEY"
               Value: !Ref AurKeyParam
 

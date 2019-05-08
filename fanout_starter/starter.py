@@ -1,10 +1,10 @@
+import json
 import os
 
-from aws import get_dynamo_resource, invoke_lambda
+from aws import get_dynamo_resource, invoke_lambda, send_to_queue
 from enums import Status
 
-FANOUT_STATUS = os.environ.get('FANOUT_STATUS')
-FANOUT_CONTROLLER = os.environ.get('FANOUT_CONTROLLER')
+FANOUT_QUEUE = os.environ.get('FANOUT_QUEUE')
 PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
 BUILD_FUNC = os.environ.get('BUILD_FUNC')
 PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
@@ -18,12 +18,11 @@ def lambda_handler(event, context):
 
     # The dynamoDB table containing the running status of each package
     dynamo = get_dynamo_resource()
-    fanout_table = dynamo.Table(FANOUT_STATUS)
     package_table = dynamo.Table(PACKAGE_TABLE)
 
     # Put each one in the FANOUT_STATUS table with an "Initialized" status and add it to the queue
     build_packages = get_packages_to_build(package_table, deps)
-    process_packages(fanout_table, build_packages, url)
+    process_packages(build_packages, url)
 
     return {
         'statusCode': 200,
@@ -47,25 +46,25 @@ def get_packages_to_build(package_table, pkgbuild_packages):
     return to_build
 
 
-def process_packages(fanout_table, build_packages, metapackage_url):
+def process_packages(build_packages, metapackage_url):
     """ Add packages to be built to a build queue including the metapackage URL for building after completion.
 
-    :param (Table) fanout_table: The table containing
     :param (list) build_packages: The collection of packages to build as a list of package names
     :param (str) metapackage_url: The URL of the repository for the metapackage to build after the rest
     """
 
-    # Store the metapackage URL for building on completion
-    fanout_table.put_item(Item={"PackageName": "GIT_REPO", "BuildStatus": metapackage_url})
-
-    # Set the initial state of each package
-    for pkg in build_packages:
-        message = {'PackageName': pkg, 'BuildStatus': Status.Initialized.name}
-        fanout_table.put_item(Item=message)
-
     # Build the other packages
     for pkg in build_packages:
         process_package(pkg)
+
+    # Store the metapackage URL for building on completion
+    metapackage_msg = {
+        "PackageName": "GIT_REPO",
+        "BuildStatus": Status.Initialized.name,
+        "IsMeta": True,
+        "GitUrl": metapackage_url
+    }
+    send_to_queue(FANOUT_QUEUE, json.dumps(metapackage_msg))
 
 
 def process_package(package):
@@ -75,8 +74,9 @@ def process_package(package):
     """
     print(f"Building package: {package}")
 
+    # Update the status to say the package is building
+    message = {"PackageName": package, "BuildStatus": Status.Building.name, "IsMeta": False}
+    send_to_queue(FANOUT_QUEUE, json.dumps(message))
+
     # Add them to the build queue and start the build VM
     invoke_lambda(BUILD_FUNC, {"PackageName": package, "Repo": PERSONAL_REPO})
-
-    # Update the status to say the package is building
-    invoke_lambda(FANOUT_CONTROLLER, {"PackageName": package, "BuildStatus": Status.Building.name})
