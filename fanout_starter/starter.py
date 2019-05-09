@@ -2,6 +2,7 @@ import json
 import os
 
 from aws import get_dynamo_resource, invoke_lambda, send_to_queue
+from common import return_code
 from enums import Status
 
 FANOUT_QUEUE = os.environ.get('FANOUT_QUEUE')
@@ -24,10 +25,7 @@ def lambda_handler(event, context):
     build_packages = get_packages_to_build(package_table, deps)
     process_packages(build_packages, url)
 
-    return {
-        'statusCode': 200,
-        'body': build_packages
-    }
+    return return_code(200, {'packages': build_packages})
 
 
 def get_packages_to_build(package_table, pkgbuild_packages):

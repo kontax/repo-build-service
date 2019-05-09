@@ -254,10 +254,13 @@ Resources:
             TableName: !Ref FanoutStatusTable
         - LambdaInvokePolicy:
             FunctionName: !Ref MetapackageBuilderFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref PackageUpdateFunction
       Environment:
         Variables:
           FANOUT_STATUS: !Ref FanoutStatus
           METAPACKAGE_BUILDER: !GetAtt MetapackageBuilderFunction.Arn
+          PACKAGE_UPDATER: !GetAtt PackageUpdateFunction.Arn
       Layers:
         - !Ref AwsLayer
       Events:
@@ -276,12 +279,15 @@ Resources:
       Handler: metapackage.lambda_handler
       Timeout: 20
       Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref FanoutStatusTable
         - LambdaInvokePolicy:
             FunctionName: !Ref BuildFunction
       Environment:
         Variables:
           BUILD_FUNC: !GetAtt BuildFunction.Arn
           PERSONAL_REPO: !Ref PersonalRepoBucket
+          FANOUT_STATUS: !Ref FanoutStatus
       Layers:
         - !Ref AwsLayer
 

@@ -1,11 +1,11 @@
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from arch_packages import get_packages
 from aws import get_dynamo_resource
 from best_mirror import get_best_mirror
-from functools import partial
-from concurrent.futures import ThreadPoolExecutor
+from common import return_code
 
 PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
 COUNTRIES = os.environ.get('COUNTRIES')
@@ -88,20 +88,3 @@ def delete_old_packages(all_packages, new_packages, table):
         for package in to_delete:
             batch.delete_item(Key={'PackageName': package})
     return to_delete
-
-
-def return_code(code, body):
-    """Returns a JSON response
-
-    Args:
-        code (int): The HTTP response code
-        body (dict): The data to return
-
-    Returns:
-        (dict): A JSON object containing the code and body
-    """
-    return {
-        "statusCode": code,
-        "body": json.dumps(body)
-    }
-

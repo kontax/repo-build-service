@@ -3,10 +3,11 @@ import os
 from urllib.parse import unquote
 
 from botocore.vendored import requests
-from aws import invoke_lambda
 
 import commit_parser
 import github_token_validator
+from aws import invoke_lambda
+from common import return_code
 
 NEXT_FUNC = os.environ.get("NEXT_FUNC")
 
@@ -24,11 +25,7 @@ def lambda_handler(event, context):
     pkgbuild_location = commit_parser.get_pkgbuild_location(commit_payload)
     if pkgbuild_location is None:
         print("No PKGBUILD commit found, exiting")
-        return {
-            'statusCode': 401,
-            'headers': { 'Content-Type': 'text/plain' },
-            'body': 'No updated PKGBUILD found'
-        }
+        return return_code(401, {'headers': {'Content-Type': 'text/plain'}, 'body': 'No updated PKGBUILD found'})
 
     # Pull latest PKGBUILD
     print(f"Found PKGBUILD at {pkgbuild_location}")
@@ -39,9 +36,5 @@ def lambda_handler(event, context):
 
     response = invoke_lambda(NEXT_FUNC, payload)
     print(response)
-    
-    return {
-        'statusCode': 200,
-        'body': json.dumps('PKGBUILD extracted')
-    }
 
+    return return_code(200, {'status': 'PKGBUILD extracted'})

@@ -3,6 +3,7 @@ import os
 import re
 
 from aws import invoke_lambda
+from common import return_code
 
 NEXT_FUNC = os.environ.get('NEXT_FUNC')
 
@@ -10,10 +11,7 @@ NEXT_FUNC = os.environ.get('NEXT_FUNC')
 def lambda_handler(event, context):
     print(event)
     run(json.dumps(event))
-    return {
-        'statusCode': 200,
-        'body': json.dumps('PKGBUILD added to queue')
-    }
+    return return_code(200, {'status': "PKGBUILD added to queue"})
 
 
 def _get_dependencies(pkgbuild):

@@ -4,40 +4,99 @@ import os
 from boto3.dynamodb.conditions import Key
 
 from aws import get_dynamo_resource, invoke_lambda
+from common import return_code
 from enums import Status
 
 FANOUT_STATUS = os.environ.get('FANOUT_STATUS')
 METAPACKAGE_BUILDER = os.environ.get('METAPACKAGE_BUILDER')
+PACKAGE_UPDATER = os.environ.get('PACKAGE_UPDATER')
 
 
 def lambda_handler(event, context):
     print(event)
 
+    # Set default return message
+    return_message = return_code(200, {"status": "No package found"})
+
+    # Loop through each message received
     for message in event['Records']:
-        package_state = json.loads(message['body'])
 
-        # The dynamoDB table containing the running status of each package
-        dynamo = get_dynamo_resource()
-        fanout_table = dynamo.Table(FANOUT_STATUS)
-        update_sent_item(fanout_table, package_state)
+        # If the metapackage has been built, clear the table.
+        if json.loads(message['body']).get("FanoutStatus") == "Complete":
+            print("Fanout status complete")
+            clear_table()
+            print("Updating package table")
+            invoke_lambda(PACKAGE_UPDATER, {})
+            return return_code(200, {"status": "Fanout status complete"})
 
-        # Delete completed items
-        delete_finished(fanout_table)
+        # Handle the message and set the final status - this is all we need to return
+        return_message = handle_fanout_status(message)
 
-        # Check remaining items
-        resp = fanout_table.scan()
+    # Return the final status message
+    return return_message
 
-        # If items are still running quit and wait for the next invocation
-        regular_packages = [x for x in resp['Items'] if not x.get('IsMeta')]
-        meta_packages = [x for x in resp['Items'] if x.get('IsMeta')]
-        if len(regular_packages) > 0 or len(meta_packages) == 0:
-            print(f"{len(regular_packages)} still in table")
-            return return_code(200, {"status": "Items are still running"})
 
-        # Otherwise if everything has completed, invoke the meta-package building function
-        build_metapackage(fanout_table)
+def clear_table():
+    """ Clears the fanout status table completely on completion. """
+    print("Clearing fanout status table")
+    dynamo = get_dynamo_resource()
+    fanout_table = dynamo.Table(FANOUT_STATUS)
+    resp = fanout_table.scan()
+    to_delete = [x['PackageName'] for x in resp['Items']]
+    with fanout_table.batch_writer() as batch:
+        for package in to_delete:
+            batch.delete_item(Key={'PackageName': package})
 
+
+def handle_fanout_status(package_message):
+    """ Handle a single message by updating the package state in the fanout table and, if all have either
+    failed or been built, build the metapackage.
+
+    :param (dict) package_message: The JSON message containing the package state within the 'body' key
+    :return: A HTTP return code containing the status of the fanout process
+    :rtype: dict
+    """
+    package_state = json.loads(package_message['body'])
+
+    # The dynamoDB table containing the running status of each package
+    dynamo = get_dynamo_resource()
+    fanout_table = dynamo.Table(FANOUT_STATUS)
+    update_sent_item(fanout_table, package_state)
+
+    # Delete failed items
+    delete_failed(fanout_table)
+
+    # Check remaining items
+    resp = fanout_table.scan()
+    still_building = packages_still_building(resp['Items'])
+    if still_building > 0:
+        print(f"{still_building} items still in table")
+        return return_code(200, {"status": "Items are still running"})
+
+    # Otherwise if everything has completed, invoke the meta-package building function
+    build_metapackage(fanout_table)
     return return_code(200, {"status": "All packages built"})
+
+
+def packages_still_building(fanout_list):
+    """ Checks how many packages are being built or are in the queue to be built, so we can decide
+    whether to move forward with the process.
+
+    :param (list) fanout_list:
+    :return: The number of packages (excluding metapackages) building or queued to be built
+    :rtype: int
+    """
+
+    # Check how many metapackages are yet to be built, as these are done at the later stage
+    meta_package_count = len([x for x in fanout_list if x.get('IsMeta')])  # Should only be one
+
+    # See how many total packages are in the build or init status
+    incomplete_count = len([x for x in fanout_list
+                            if x['BuildStatus'] == Status.Initialized.name
+                            or x['BuildStatus'] == Status.Building.name])
+
+    # Ignore the metapackages
+    return incomplete_count - meta_package_count
 
 
 def update_sent_item(fanout_table, package_state):
@@ -58,15 +117,14 @@ def update_sent_item(fanout_table, package_state):
     )
 
 
-def delete_finished(fanout_table):
-    """ Deletes any completed or failed items from the fanout table
+def delete_failed(fanout_table):
+    """ Deletes any failed items from the fanout table, as these packages can be ignored when
+    processing the metapackage.
 
     :param (Table) fanout_table: The table containing the status of each package within the process
     """
     all_items = fanout_table.scan()
-    deleted_items = [item for item in all_items['Items']
-                     if item['BuildStatus'] == Status.Complete.name
-                     or item['BuildStatus'] == Status.Failed.name]
+    deleted_items = [item for item in all_items['Items'] if item['BuildStatus'] == Status.Failed.name]
     for item in deleted_items:
         print(f"Removing item {item['PackageName']}")
         fanout_table.delete_item(Key={"PackageName": item['PackageName']})
@@ -81,18 +139,3 @@ def build_metapackage(fanout_table):
     resp = fanout_table.query(KeyConditionExpression=Key('PackageName').eq("GIT_REPO"))
     invoke_lambda(METAPACKAGE_BUILDER, {"git_url": resp['Items'][0]['GitUrl']})
     fanout_table.delete_item(Key={"PackageName": "GIT_REPO"})
-
-
-def return_code(code, body):
-    """Returns a JSON response
-
-    :param (int) code: The HTTP response code
-    :param (dict) body: The data to return
-
-    :return: A JSON object containing the code and body
-    :rtype: dict
-    """
-    return {
-        "statusCode": code,
-        "body": json.dumps(body)
-    }

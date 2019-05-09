@@ -2,6 +2,7 @@ import json
 import os
 
 from aws import send_to_queue, start_ecs_task, get_running_task_count
+from common import return_code
 
 BUILD_QUEUE = os.environ.get('BUILD_QUEUE')
 ECS_CLUSTER = os.environ.get('ECS_CLUSTER')
@@ -22,18 +23,3 @@ def lambda_handler(event, context):
         start_ecs_task(ECS_CLUSTER, TASK_DEFN)
 
     return return_code(200, {'status': 'Package building'})
-
-
-def return_code(code, body):
-    """Returns a JSON response
-
-    :param (int) code: The HTTP response code
-    :param (dict) body: The data to return
-
-    :return: A JSON object containing the code and body
-    :rtype: dict
-    """
-    return {
-        "statusCode": code,
-        "body": json.dumps(body)
-    }
