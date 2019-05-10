@@ -19,6 +19,9 @@ Parameters:
     Type: String
     Description: The architecture to build the packages for
     Default: "x86_64"
+  AurPackager:
+    Type: String
+    Description: The name and email of the person who packaged the AUR package
 
   # Names of DynamoDB tables and SQS queues
   PackageTable:
@@ -494,6 +497,8 @@ Resources:
               Value: !Ref PushoverUser
             - Name: "REPO_NAME"
               Value: !Ref RepoName
+            - Name: "REPO_BUCKET"
+              Value: !Ref PersonalRepoBucket
             - Name: "REPO_ARCH"
               Value: !Ref RepoArch
             - Name: "SQS_QUEUE_URL"
@@ -504,6 +509,8 @@ Resources:
               Value: !Ref FanoutQueue
             - Name: "AUR_KEY"
               Value: !Ref AurKeyParam
+            - Name: "PACKAGER"
+              Value: !Ref AurPackager
 
   RepoUpdaterTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -538,6 +545,8 @@ Resources:
               Value: !Ref AWS::Region
             - Name: "AUR_KEY"
               Value: !Ref AurKeyParam
+            - Name: "PACKAGER"
+              Value: !Ref AurPackager
 
   #####
   # Database Tables
