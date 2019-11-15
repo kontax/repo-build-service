@@ -45,8 +45,9 @@ def _get_dependencies(pkgbuild):
         # Extract the packages
         if within_depends and line != ')':
             # Remove comments
-            pkg = re.sub('#.*', '', line).strip().split(' ')
-            dependencies.extend(pkg)
+            pkgs = [pkg for pkg in re.sub('#.*', '', line).strip().split(' ')
+                    if len(pkg) > 0]
+            dependencies.extend(pkgs)
 
         # Continue until the closing bracket
         if within_depends and line == ')':
