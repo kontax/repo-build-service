@@ -1,6 +1,7 @@
 # Repo Build Service
 
-An AWS lambda service used to keep a personal repository of Arch packages up to date.
+An AWS lambda service used to keep a personal repository of Arch packages up to date. This service automatically 
+monitors a Github repository for AUR packages to build and store.
 
 ```
 .
@@ -22,192 +23,104 @@ An AWS lambda service used to keep a personal repository of Arch packages up to 
 * AWS Administrator access
 * [Python 3](https://www.python.org/downloads/)
 * [Docker](https://www.docker.com/community-edition)
+* [Pushover](https://pushover.net/)
 * [AWS SAM CLI](https://github.com/awslabs/aws-sam-cli)
 * [Personal repository in S3](https://disconnected.systems/blog/archlinux-repo-in-aws-bucket)
 * [Meta-packages stored in GitHub](https://github.com/kontax/arch-packages)
 
-## Setup process
+## Prerequisites
 
-### Local development
-
-**Invoking function locally using a local sample payload**
-
-```bash
-sam local invoke HelloWorldFunction --event event.json
-```
-
-**Invoking function locally through local API Gateway**
+### AWS Setup
+Firstly we need to create an AWS account, and configure it to be used on our Development system. The reasons for this 
+are twofold - firstly we need a place to store the AUR packages, hooking up pacman to them; and secondly we need an S3 
+container to publish AWS SAM deployments. Create an AWS account and create a new Administrator account with programmatic 
+access, and use `aws configure` to set it up locally (assuming aws-cli is installed). Once done, create a new bucket for 
+hosting SAM deployments:
 
 ```bash
-sam local start-api
+aws s3api create-bucket \
+    --bucket ${BUCKET_NAME} \
+    --region ${REGION}
 ```
 
-If the previous command ran successfully you should now be able to hit the following local endpoint to invoke your function `http://localhost:3000/hello`
-
-**SAM CLI** is used to emulate both Lambda and API Gateway locally and uses our `template.yaml` to understand how to bootstrap this environment (runtime, where the source code is, etc.) - The following excerpt is what the CLI will read in order to initialize an API and its routes:
-
-```yaml
-...
-Events:
-    HelloWorld:
-        Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-        Properties:
-            Path: /hello
-            Method: get
-```
-
-## Packaging and deployment
-
-AWS Lambda Python runtime requires a flat folder with all dependencies including the application. SAM will use `CodeUri` property to know where to look up for both application and dependencies:
-
-```yaml
-...
-    HelloWorldFunction:
-        Type: AWS::Serverless::Function
-        Properties:
-            CodeUri: src
-            ...
-```
-
-Firstly, we need a `S3 bucket` where we can upload our Lambda functions packaged as ZIP before we deploy anything - If you don't have a S3 bucket to store code artifacts then this is a good time to create one:
+Follow the steps in [Disconnected's blog post](https://disconnected.systems/blog/archlinux-repo-in-aws-bucket) first, 
+then resume here. A new public-read bucket may be created with the following command, ensuring to change the bucket name 
+and region:
 
 ```bash
-aws s3 mb s3://BUCKET_NAME
+aws s3api create-bucket \
+    --acl public-read \
+    --bucket ${BUCKET_NAME} \
+    --region ${REGION}
 ```
 
-Next, run the following command to package our Lambda function to S3:
+### Github Webhook
+The build service relies on a Github hook in order to kick off the build process. A repository containing the PKGBUILD
+with all AUR packages to be built must be set up to notify the process on each commit pushed. This can be found in 
+the repository settings page, under the Webhooks heading.
 
+Create a new Webhook, and enter `https://example.com` as the Payload URL. This will need to be changed once the build
+service has been published. The Content-Type should be `application/json`. For the secret, create a new UUID and 
+populate the form with it. This should be noted down, as it will be needed later on when pushing to SSM. Finally, just
+select the push event and click the Add Webhook button.
+
+### Pushover
+[Pushover](https://pushover.net/) is used to send notifications of new/updated packages as well as failures. We need to
+create an account and set up an API key in order to use them. After creating an account, take note of the user key. 
+Create a new application and note down the API key there. Also register a phone so notifications have somewhere to be 
+sent.
+
+### GPG Key
+A GPG key is used to sign packages and ensure they haven't been tampered with after being built. Create a GPG key with
+the following steps:
+TODO: Figure out steps for this
 ```bash
-sam package \
-    --output-template-file packaged.yaml \
-    --s3-bucket REPLACE_THIS_WITH_YOUR_S3_BUCKET_NAME
+export GNUPGHOME=/tmp   # Create a temporary GPG directory (if required)
+gpg --full-generate-key
 ```
+The key must then be exported as text, which can then be uploaded to SSM as described below.
 
-Next, the following command will create a Cloudformation Stack and deploy your SAM resources.
+### SSM
+All the keys that have been generated need to be uploaded to SSM
 
-```bash
-sam deploy \
-    --template-file packaged.yaml \
-    --stack-name aws \
-    --capabilities CAPABILITY_IAM
-```
+1. Create an administrator account in AWS for deployment and set up locally with `aws configure`
+2. Follow the steps within disconnected's blog to set up an S3 repo, ensuring a PKGBUILD file is in a Github repo
+3. Set up a webhook within that Github repo, using a temporary URL and generating a UUID for the secret key
+4. Upload the secret key to SSM
+5. Create a separate S3 bucket for deployment
+6. Create a pushover account and create an app to get an API key
+7. Upload the pushover key to SSM
+8. Create a signing key for packages, and upload that to SSM
+9. Create a decryption key for the key in the step above
 
-> **See [Serverless Application Model (SAM) HOWTO Guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-quick-start.html) for more details in how to get started.**
+## Template Parameters
 
-After deployment is complete you can run the following command to retrieve the API Gateway Endpoint URL:
+### Repository Details
+* **PersonalRepository**: Full URL to the AUR repository DB eg. `https://s3.us-west-1.amazonaws.com/my-aur-bucket/x86_64/my-aur-repo.db`
+* **PersonalRepoBucket**: Name of the S3 bucket containing the repostitory eg. `my-aur-bucket`
+* **RepoName**: Name of the repository as set up in pacman eg. `my-aur-repo`
+* **RepoArch**: Architecture of the repository eg. `x86_64`
+* **AurPackager**: Name/email assigned to the package build eg. `Package Builder <aur@example.com>`
 
-```bash
-aws cloudformation describe-stacks \
-    --stack-name aws \
-    --query 'Stacks[].Outputs[?OutputKey==`HelloWorldApi`]' \
-    --output table
-``` 
+### AWS Setup
+* **PackageTable**: Name of the DynamoDB table storing package details, defaults to `package-list`
+* **FanoutStatusTable**: Name of the table used to control the fan-in / fan-out status of package building, defaults to `fanout-status`
+* **FanoutController**: Name of the lambda function used to control fan-in / fan-out state, defaults to `fanout-controller`
+* **BuildQueueName**: Name of the queue that the ECS tasks use to pull package details from to build, defaults to `fanout-queue`
 
-## Fetch, tail, and filter Lambda function logs
+### Reflector Variables
+* **RepositoryCountries**: Comma-separated country codes used for finding the best mirror for package downloads, defaults to `IE,GB`
 
-To simplify troubleshooting, SAM CLI has a command called sam logs. sam logs lets you fetch logs generated by your Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
+### Secret Keys
+* **GithubWebhookSecret**: Secret key set up within the Github repository containing the PKGBUILD meta-package, defaults to `{{resolve:ssm:githubToken:1}}` which needs to be set up as described above
+* **PushoverToken**: Token used to notify built packages via pushover, defaults to `{{resolve:ssm:pushoverToken:1}}`, however this needs to be set up within AWS SSM as outlined above
+* **PushoverUser**: Username created within Pushover, defaults to `{{resolve:ssm:pushoverUser:1}}`, which needs to be set up as described above
+* **AurKeyParam**: Name of the private key within the Paramter Store used to sign built packages, defaults to `aur_key`
+* **AurKeyDecrypt**: The KMS key used to encrypt/decrypt the parameter store above, eg. `key/abcdef-1234-5678-ghijkl123456`
 
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
-
-```bash
-sam logs -n HelloWorldFunction --stack-name aws --tail
-```
-
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Testing
-
-
-Next, we install test dependencies and we run `pytest` against our `tests` folder to run our initial unit tests:
-
-```bash
-pip install pytest pytest-mock --user
-python -m pytest tests/ -v
-```
-
-## Cleanup
-
-In order to delete our Serverless Application recently deployed you can use the following AWS CLI Command:
-
-```bash
-aws cloudformation delete-stack --stack-name aws
-```
-
-## Bringing to the next level
-
-Here are a few things you can try to get more acquainted with building serverless applications using SAM:
-
-### Learn how SAM Build can help you with dependencies
-
-* Uncomment lines on `app.py`
-* Build the project with ``sam build --use-container``
-* Invoke with ``sam local invoke HelloWorldFunction --event event.json``
-* Update tests
-
-### Create an additional API resource
-
-* Create a catch all resource (e.g. /hello/{proxy+}) and return the name requested through this new path
-* Update tests
-
-### Step-through debugging
-
-* **[Enable step-through debugging docs for supported runtimes]((https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-using-debugging.html))**
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
-
-# Appendix
-
-## Building the project
-
-[AWS Lambda requires a flat folder](https://docs.aws.amazon.com/lambda/latest/dg/lambda-python-how-to-create-deployment-package.html) with the application as well as its dependencies in  deployment package. When you make changes to your source code or dependency manifest,
-run the following command to build your project local testing and deployment:
-
-```bash
-sam build
-```
-
-If your dependencies contain native modules that need to be compiled specifically for the operating system running on AWS Lambda, use this command to build inside a Lambda-like Docker container instead:
-```bash
-sam build --use-container
-```
-
-By default, this command writes built artifacts to `.aws-sam/build` folder.
-
-## SAM and AWS CLI commands
-
-All commands used throughout this document
-
-```bash
-# Generate event.json via generate-event command
-sam local generate-event apigateway aws-proxy > event.json
-
-# Invoke function locally with event.json as an input
-sam local invoke HelloWorldFunction --event event.json
-
-# Run API Gateway locally
-sam local start-api
-
-# Create S3 bucket
-aws s3 mb s3://BUCKET_NAME
-
-# Package Lambda function defined locally and upload to S3 as an artifact
-sam package \
-    --output-template-file packaged.yaml \
-    --s3-bucket REPLACE_THIS_WITH_YOUR_S3_BUCKET_NAME
-
-# Deploy SAM template as a CloudFormation stack
-sam deploy \
-    --template-file packaged.yaml \
-    --stack-name aws \
-    --capabilities CAPABILITY_IAM
-
-# Describe Output section of CloudFormation stack previously created
-aws cloudformation describe-stacks \
-    --stack-name aws \
-    --query 'Stacks[].Outputs[?OutputKey==`HelloWorldApi`]' \
-    --output table
-
-# Tail Lambda function Logs using Logical name defined in SAM Template
-sam logs -n HelloWorldFunction --stack-name aws --tail
-```
+### ECS Objects
+* **ECSCluster**: Name of the cluster used to contain the packages building ECS tasks, defaults to `aur-pkgbuild-cluster`
+* **TaskDefinition**: Name of the ECS task used to build packages, defaults to `aur-pkgbuild-task`
+* **RepoUpdater**: Name of the ECS task used to update the full repository, defaults to `aur-repo-update-task`
+* **MaxTaskCount**: Maximum number of ECS tasks to run simultaneously, defaults to 4
 
