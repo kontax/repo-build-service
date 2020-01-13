@@ -113,6 +113,8 @@ gpg --full-generate-key
 gpg --export-secret-keys --armor > aur_key.gpg
 ```
 The key must then be exported as text, which can then be uploaded to SSM as described below.
+Alternatively if a key is already available, simply export the secret key to a text file and upload it to
+SSM using the steps below.
 
 ### SSM
 All the keys that have been generated need to be uploaded to SSM with the following commands, taking note
