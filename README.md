@@ -4,7 +4,7 @@ An AWS lambda service used to keep a personal repository of Arch packages up to 
 monitors a Github repository for AUR packages to build and store. An overview of the parts within the system
 are as follows:
 
-[Overview](files/overview.png "Overview")
+![Overview](files/overview.png "Overview")
 
 ```
 .
