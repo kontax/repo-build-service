@@ -1,18 +1,64 @@
 # Repo Build Service
 
 An AWS lambda service used to keep a personal repository of Arch packages up to date. This service automatically 
-monitors a Github repository for AUR packages to build and store.
+monitors a Github repository for AUR packages to build and store. An overview of the parts within the system
+are as follows:
+
+[Overview](files/overview.png "Overview")
 
 ```
 .
-├── README.md                   <-- This instructions file
-├── event.json                  <-- API Gateway Proxy Integration event payload
-├── hello_world                 <-- Source code for a lambda function
+├── event.json                                  <-- Test JSON event for API Gateway
+├── pkgbuild_retriever                          <-- Retrieves the PKGBUILD file from the repository once a
+│   ├── commit_parser.py                            commit event has been passed to the API gateway
+│   ├── github_token_validator.py
+│   ├── requirements.txt
+│   └── retrieve_pkgbuild.py
+├── pkgbuild_parser                             <-- Parses the PKGBUILD file from the repository and extracts
+│   ├── parse_pkgbuild.py                           any new files that are required to be built
+│   └── requirements.txt
+├── fanout_starter                              <-- Adds packages to the build queue if they need to be built
+│   ├── requirements.txt
+│   └── starter.py
+├── fanout_controller                           <-- Lambda function used to control the packages being built
+│   ├── controller.py                               and updating the status table
+│   └── requirements.txt
+├── metapackage_builder                         <-- Builds the metapackage once all other packages are complete
+│   ├── metapackage.py
+│   └── requirements.txt
+├── pkg_builder                                 <-- Starts an ECS task used to build the package
+│   ├── build_package.py
+│   └── requirements.txt
+├── package_updater                             <-- Periodically updates the packages available in the official
+│   ├── arch_packages.py                            repositories, as they do not need to be rebuilt
+│   ├── best_mirror.py
 │   ├── __init__.py
-│   ├── app.py                  <-- Lambda function code
-│   ├── requirements.txt        <-- Lambda function code
-├── template.yaml               <-- SAM Template
-└── tests                       <-- Unit tests
+│   ├── reflector.py
+│   ├── requirements.txt
+│   └── update_packages.py
+├── repo_updater                                <-- Periodically checks the repository for packages that need
+│   ├── requirements.txt                            to be updated
+│   └── update_repo.py
+├── src                                         <-- Shared packages used by all the lambda functions
+│   └── python
+│       ├── aws.py
+│       ├── common.py
+│       ├── enums.py
+│       ├── __init__.py
+│       └── requirements.txt
+├── template.yaml                               <-- SAM template
+├── README.md                                   <-- This instructions file
+├── requirements.txt
+└── tests                                       <-- Unit tests
+    ├── inputs
+    │   ├── fanout_starter_input.json
+    │   ├── package_checker_filesystem.json
+    │   ├── package_checker_ghidra.json
+    │   ├── parser_input.json
+    │   ├── retriever_input.json
+    │   └── webhook-old.json
+    ├── tables
+    │   └── fanout-status.json
     └── unit
         ├── __init__.py
         └── test_handler.py
@@ -31,38 +77,26 @@ monitors a Github repository for AUR packages to build and store.
 ## Prerequisites
 
 ### AWS Setup
-Firstly we need to create an AWS account, and configure it to be used on our Development system. The reasons for this 
-are twofold - firstly we need a place to store the AUR packages, hooking up pacman to them; and secondly we need an S3 
-container to publish AWS SAM deployments. Create an AWS account and create a new Administrator account with programmatic 
-access, and use `aws configure` to set it up locally (assuming aws-cli is installed). Once done, create a new bucket for 
-hosting SAM deployments:
+Firstly we need to create an AWS account and configure it to be used on our Development system. We'll be 
+making use of S3 to store any built packages and be our repository as well as to store AWS SAM deployments, 
+and Lambda to handle building of new packages as they become available. 
+Create a new AWS account, and within the console create a new user with Administrator access. When given the
+option ensure "Programmatic access" is selected, as we'll be using the AWS keys for deployment. Once created
+use `aws configure` within the terminal to set up AWS on the local machine.
 
-```bash
-aws s3api create-bucket \
-    --bucket ${BUCKET_NAME} \
-    --region ${REGION}
-```
+### Arch Repository
 
-Follow the steps in [Disconnected's blog post](https://disconnected.systems/blog/archlinux-repo-in-aws-bucket) first, 
-then resume here. A new public-read bucket may be created with the following command, ensuring to change the bucket name 
-and region:
-
-```bash
-aws s3api create-bucket \
-    --acl public-read \
-    --bucket ${BUCKET_NAME} \
-    --region ${REGION}
-```
+Follow the steps in [Disconnected's blog post](https://disconnected.systems/blog/archlinux-repo-in-aws-bucket)
+first, then resume here. An example repository can be found [here](https://github.com/kontax/arch-packages.git).
 
 ### Github Webhook
-The build service relies on a Github hook in order to kick off the build process. A repository containing the PKGBUILD
-with all AUR packages to be built must be set up to notify the process on each commit pushed. This can be found in 
-the repository settings page, under the Webhooks heading.
-
-Create a new Webhook, and enter `https://example.com` as the Payload URL. This will need to be changed once the build
-service has been published. The Content-Type should be `application/json`. For the secret, create a new UUID and 
-populate the form with it. This should be noted down, as it will be needed later on when pushing to SSM. Finally, just
-select the push event and click the Add Webhook button.
+Once the repository has been set up and added to Github, a new webhook is necessary for kicking off the build
+process. The PKGBUILD file is the main requirement here, as it's searched for when any commits are made.
+To add a webhook, navigate to Settings -> Webhooks. Create a new webhook and enter the following details:
+* Payload URL: `https://example.com` (this will need to be changed once the build service has been published)
+* Content-Type: `application/json`
+* Secret: Create a new UUID - `uuidgen` can be used if installed. This should be noted for future use
+* Event: Select `Just the push event`
 
 ### Pushover
 [Pushover](https://pushover.net/) is used to send notifications of new/updated packages as well as failures. We need to
@@ -73,25 +107,45 @@ sent.
 ### GPG Key
 A GPG key is used to sign packages and ensure they haven't been tampered with after being built. Create a GPG key with
 the following steps:
-TODO: Figure out steps for this
 ```bash
 export GNUPGHOME=/tmp   # Create a temporary GPG directory (if required)
 gpg --full-generate-key
+gpg --export-secret-keys --armor > aur_key.gpg
 ```
 The key must then be exported as text, which can then be uploaded to SSM as described below.
 
 ### SSM
-All the keys that have been generated need to be uploaded to SSM
+All the keys that have been generated need to be uploaded to SSM with the following commands, taking note
+of the variables that will need to be populated by the keys created above:
 
-1. Create an administrator account in AWS for deployment and set up locally with `aws configure`
-2. Follow the steps within disconnected's blog to set up an S3 repo, ensuring a PKGBUILD file is in a Github repo
-3. Set up a webhook within that Github repo, using a temporary URL and generating a UUID for the secret key
-4. Upload the secret key to SSM
-5. Create a separate S3 bucket for deployment
-6. Create a pushover account and create an app to get an API key
-7. Upload the pushover key to SSM
-8. Create a signing key for packages, and upload that to SSM
-9. Create a decryption key for the key in the step above
+```bash
+aws ssm put-parameter --name aur_key --value $(cat aur_key.gpg) --type SecureString
+aws ssm put-parameter --name githubToken --value $GITHUB_TOKEN
+aws ssm put-parameter --name pushoverUser --value $PUSHOVER_USER
+aws ssm put-parameter --name pushoverToken --value $PUSHOVER_TOKEN
+```
+
+### KMS
+Once the SSM values are placed into AWS, a KMS key is created to enable encryption/decryption. The ID of this
+key is needed so as the values can be used on demand. This can be retrieved by using the following command:
+
+```bash
+echo "key/$(aws kms describe-key --key-id 'alias/aws/ssm' | jq -r '.KeyMetadata.KeyId')"
+```
+
+## Deployment
+
+Clone the repository, create a new Python virtual environment and install the requirements:
+
+```bash
+git clone https://github.com/kontax/repo-build-service.git
+cd repo-build-service
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+TODO: Rest of the deployment steps
 
 ## Template Parameters
 
