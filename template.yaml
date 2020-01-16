@@ -55,7 +55,7 @@ Parameters:
   GithubWebhookSecret:
     Type: String
     Description: Secret key used within the Github webhook
-    Default: ABCD1234
+    Default: '{{resolve:ssm:githubToken:1}}'
   PushoverToken:
     Type: String
     Description: Token used to notify built packages via Pushover

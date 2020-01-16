@@ -147,7 +147,61 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-TODO: Rest of the deployment steps
+### Docker
+
+AWS Lambda generally seems to be behind Arch Linux when it comes to Python versions - at the time of writing
+the latest version available within AWS is 3.7, however Arch is running 3.8.1 locally. This causes issues
+when building and deploying as there is a version mismatch, so docker is required to do this within a 
+container. If both local and remote options are the same then this step isn't necessary.
+
+When installing docker, ensure to add the local user to the docker group with the command 
+`usermod -a -G docker <username>` and re-login. Occasionally the PC needs to be restarted to fix the group
+issue. Once done, enable and start the docker service with `systemctl enable --now docker.service`.
+
+### Building and Packaging
+
+If using docker, build the application with:
+
+```bash
+sam build -u
+```
+
+The first time this is run, the `lambci/lambda:build-python3.7` (or equivalent) container needs to be 
+downloaded, which can take some time. Once complete, go through the deployment steps with the command:
+
+```bash
+sam deploy --guided
+```
+
+Name the application however you want, same with the region. For the rest of the options, check out the
+list of [Template Paramters](#template-parameters) section below. Once "Allow SAM CLI IAM role creation" pops
+up, choose "n" and then "CAPABILITY_NAMED_IAM" within the "Capabilities" option. This is required as the 
+roles used within the deployment are named.
+
+### Issues
+
+#### Missing S3 Bucket
+
+Occasionally an error will occur stating that the "S3 Bucket does not exist". If this happens, simply look at
+the option under "Deployment s3 bucket" and create that bucket with the following command:
+
+```bash
+aws s3api create-bucket --bucket <bucket_name> --region <aws_region>
+```
+
+An alternative would be to modify "samconfig.toml" (assuming saving the arguments was selected during the 
+deployment) with an existing S3 bucket name and running:
+
+```bash
+sam deploy
+```
+
+## Usage
+
+Once deployment has been completed the deployment is ready to go. Any changes to the PKGBUILD file in the
+packages repository will send a message via the webhook, kicking off the process. If any AUR packages need
+to be built that will happen first using the ECS containers, then the metapackages will be updated. Any of
+these processes will cause a push notification to be sent to Pushover.
 
 ## Template Parameters
 
