@@ -138,6 +138,7 @@ Resources:
         Variables:
           NEXT_FUNC: !GetAtt PkgbuildParserFunction.Arn
           GITHUB_WEBHOOK_SECRET: !Ref GithubWebhookSecret
+          STAGE_NAME: !Ref StageName
       Events:
         RetrievePkgbuildEvent:
           Type: Api
