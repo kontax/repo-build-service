@@ -552,11 +552,5 @@ Outputs:
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   RetrievePkgbuildApi:
-    Description: "API Gateway endpoint URL for Prod stage for PKGBUILD Retriever function"
-    Value: !Sub "https://${RetrievePkgbuildApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/update"
-  PackageUpdateFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt PackageUpdateFunction.Arn
-  PackageUpdateFunctionIamRole:
-    Description: "Implicit IAM Role created for Package Update function"
-    Value: !GetAtt PackageUpdateFunctionRole.Arn
+    Description: "API Gateway endpoint URL for `StageName` stage for PKGBUILD Retriever function"
+    Value: !Sub "https://${RetrievePkgbuildApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/update"
