@@ -5,6 +5,16 @@ Description: >
 
 Parameters:
 
+  # Environment parameters
+  StageName:
+    Type: String
+    Description: Name of the deployment environment used
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+
   # Details of the repository containing built packages within S3
   PersonalRepository:
     Type: String
@@ -22,28 +32,6 @@ Parameters:
   AurPackager:
     Type: String
     Description: The name and email of the person who packaged the AUR package
-
-  # Names of DynamoDB tables and SQS queues
-  PackageTable:
-    Type: String
-    Description: Name of the table containing the list of existing Arch packages
-    Default: "package-list"
-  FanoutStatusTable:
-    Type: String
-    Description: Name of the table used to control the fan-in/out status of package building
-    Default: "fanout-status"
-  FanoutControllerName:
-    Type: String
-    Description: Name of the function used to control the fan-in / fan-out state
-    Default: "fanout-controller"
-  BuildQueueName:
-    Type: String
-    Description: Name of the queue the ECS tasks use to pull packages from and build
-    Default: "aur-pkg-build"
-  FanoutQueueName:
-    Type: String
-    Description: Name of the queue used for controlling the fanout status of each package
-    Default: "fanout-queue"
 
   # Reflector variables
   RepositoryCountries:
@@ -73,18 +61,6 @@ Parameters:
     Description: The KMS key used to encrypt/decrypt the parameter store key above (key/{guid})
 
   # Names of the ECS objects
-  ECSCluster:
-    Type: String
-    Description: Name of the cluster used to contain the package building ECS tasks
-    Default: "aur-pkgbuild-cluster"
-  TaskDefinition:
-    Type: String
-    Description: Name of the ECS task used to build packages
-    Default: "aur-pkgbuild-task"
-  RepoUpdater:
-    Type: String
-    Description: Name of ECS task used to update repository
-    Default: "aur-repo-update-task"
   MaxTaskCount:
     Type: Number
     Description: The maximum number of ECS tasks to run simultaneously
@@ -94,7 +70,7 @@ Parameters:
 Globals:
   Function:
     Timeout: 3
-    Runtime: python3.7
+    Runtime: python3.8
 
 Resources:
 
@@ -104,16 +80,15 @@ Resources:
   PackageUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: package-update
+      FunctionName: !Sub "package-update-${StageName}"
       Description: Scheduled updating of the package list in all repositories
-      Runtime: python3.7
       CodeUri: package_updater
       Handler: update_packages.lambda_handler
       Timeout: 600
       MemorySize: 512
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref PackageData
+            TableName: !Ref PackageTable
       Environment:
         Variables:
           COUNTRIES: !Ref RepositoryCountries
@@ -130,16 +105,15 @@ Resources:
   RepoUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: repo-update
+      FunctionName: !Sub "repo-update-${StageName}"
       Description: Scheduled updating of the personal repository
-      Runtime: python3.7
       CodeUri: repo_updater
       Handler: update_repo.lambda_handler
       Timeout: 60
       Role: !GetAtt ExtractRole.Arn
       Environment:
         Variables:
-          ECS_CLUSTER: !Ref ECSCluster
+          ECS_CLUSTER: !Ref PkgbuildCluster
           TASK_DEFN: !Ref RepoUpdaterTaskDefinition
       Events:
         RepoUpdateSchedule:
@@ -152,9 +126,8 @@ Resources:
   PkgbuildRetrieverFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: pkgbuild-retriever
+      FunctionName: !Sub "pkgbuild-retriever-${StageName}"
       Description: API for pulling the PKGBUILD from Github
-      Runtime: python3.7
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
       Timeout: 20
@@ -165,6 +138,7 @@ Resources:
         Variables:
           NEXT_FUNC: !GetAtt PkgbuildParserFunction.Arn
           GITHUB_WEBHOOK_SECRET: !Ref GithubWebhookSecret
+          STAGE_NAME: !Ref StageName
       Events:
         RetrievePkgbuildEvent:
           Type: Api
@@ -178,9 +152,8 @@ Resources:
   PkgbuildParserFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: pkgbuild-parser
+      FunctionName: !Sub "pkgbuild-parser-${StageName}"
       Description: Parses the PKGBUILD and extracts a list of packages from it
-      Runtime: python3.7
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
       Timeout: 10
@@ -196,9 +169,8 @@ Resources:
   FanoutStarterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: fanout-starter
+      FunctionName: !Sub "fanout-starter-${StageName}"
       Description: A starter function to set up the fan-out and fan-in of building packages
-      Runtime: python3.7
       CodeUri: fanout_starter
       Handler: starter.lambda_handler
       Timeout: 60
@@ -206,9 +178,9 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
         - DynamoDBReadPolicy:
-            TableName: !Ref PackageData
+            TableName: !Ref PackageTable
         - SQSSendMessagePolicy:
-            QueueName: !Ref FanoutQueueName
+            QueueName: !GetAtt FanoutQueue.QueueName
         - LambdaInvokePolicy:
             FunctionName: !Ref BuildFunction
       Environment:
@@ -223,22 +195,23 @@ Resources:
   BuildFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: build-package
+      FunctionName: !Sub "build-package-${StageName}"
       Description: Starts an ECS task to build a package and adds the package to the build queue
-      Runtime: python3.7
       CodeUri: pkg_builder
       Handler: build_package.lambda_handler
       Timeout: 60
       Role: !GetAtt ExtractRole.Arn
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !Ref BuildQueueName
+            QueueName: !GetAtt BuildQueue.QueueName
       Environment:
         Variables:
           BUILD_QUEUE: !Ref BuildQueue
-          ECS_CLUSTER: !Ref ECSCluster
+          ECS_CLUSTER: !Ref PkgbuildCluster
           TASK_DEFN: !Ref PkgbuildTaskDefinition
-          TASK_FAMILY: !Ref TaskDefinition
+          #TASK_FAMILY: !Ref TaskDefinition
+          #TASK_FAMILY: !GetAtt PkgbuildTaskDefinition.Family
+          TASK_FAMILY: !Sub "aur-pkgbuild-task-${StageName}"
           MAX_TASK_COUNT: !Ref MaxTaskCount
       Layers:
         - !Ref AwsLayer
@@ -246,9 +219,8 @@ Resources:
   FanoutControllerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref FanoutControllerName
+      FunctionName: !Sub "fanout-controller-${StageName}"
       Description: Manages the parallel building of packages via the FanoutStatus table
-      Runtime: python3.7
       CodeUri: fanout_controller
       Handler: controller.lambda_handler
       Timeout: 30
@@ -261,7 +233,7 @@ Resources:
             FunctionName: !Ref PackageUpdateFunction
       Environment:
         Variables:
-          FANOUT_STATUS: !Ref FanoutStatus
+          FANOUT_STATUS: !Ref FanoutStatusTable
           METAPACKAGE_BUILDER: !GetAtt MetapackageBuilderFunction.Arn
           PACKAGE_UPDATER: !GetAtt PackageUpdateFunction.Arn
       Layers:
@@ -275,9 +247,8 @@ Resources:
   MetapackageBuilderFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: metapackage-builder
+      FunctionName: !Sub "metapackage-builder-${StageName}"
       Description: Retrieves the metapackage PKGBUILD and queues it for building
-      Runtime: python3.7
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
       Timeout: 20
@@ -290,7 +261,7 @@ Resources:
         Variables:
           BUILD_FUNC: !GetAtt BuildFunction.Arn
           PERSONAL_REPO: !Ref PersonalRepoBucket
-          FANOUT_STATUS: !Ref FanoutStatus
+          FANOUT_STATUS: !Ref FanoutStatusTable
       Layers:
         - !Ref AwsLayer
 
@@ -300,7 +271,7 @@ Resources:
   RetrievePkgbuildApi:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: prod
+      StageName: !Ref StageName
       EndpointConfiguration: REGIONAL
       DefinitionBody:
         swagger: 2.0
@@ -335,7 +306,7 @@ Resources:
   ExtractRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ExtractRole
+      RoleName: !Sub "ExtractRole-${StageName}"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -346,7 +317,7 @@ Resources:
                 - ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: ExtractPolicy
+        - PolicyName: !Sub "ExtractPolicy-${StageName}"
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -381,7 +352,7 @@ Resources:
   BuildTaskRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: AurPkgBuildTaskRole
+      RoleName: !Sub "AurPkgBuildTaskRole-${StageName}"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -391,7 +362,7 @@ Resources:
                 - ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: AurPkgBuildTaskPolicy
+        - PolicyName: !Sub "AurPkgBuildTaskPolicy-${StageName}"
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -440,11 +411,12 @@ Resources:
   AwsLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      LayerName: aws-dependencies
+      LayerName: !Sub "aws-dependencies-${StageName}"
       Description: Dependencies for PKGBUILD apps
       ContentUri: src/
       CompatibleRuntimes:
         - python3.7
+        - python3.8
       LicenseInfo: 'MIT'
       RetentionPolicy: Retain
 
@@ -454,12 +426,12 @@ Resources:
   FanoutQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Ref FanoutQueueName
+      QueueName: !Sub "fanout-queue-${StageName}"
 
   BuildQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Ref BuildQueueName
+      QueueName: !Sub "aur-pkg-build-${StageName}"
       VisibilityTimeout: 600
 
   #####
@@ -468,12 +440,13 @@ Resources:
   PkgbuildCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Ref ECSCluster
+      ClusterName: !Sub "aur-pkgbuild-cluster-${StageName}"
 
   PkgbuildTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Ref TaskDefinition
+      #Family: !Ref TaskDefinition
+      Family: !Sub "aur-pkgbuild-task-${StageName}"
       Cpu: "4096"
       Memory: "8192"
       NetworkMode: "awsvpc"
@@ -515,7 +488,8 @@ Resources:
   RepoUpdaterTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Ref RepoUpdater
+      #Family: !Ref RepoUpdater
+      Family: !Sub "aur-repo-update-task-${StageName}"
       Cpu: "4096"
       Memory: "8192"
       NetworkMode: "awsvpc"
@@ -551,18 +525,18 @@ Resources:
   #####
   # Database Tables
   ###
-  PackageData:
+  PackageTable:
     Type: AWS::Serverless::SimpleTable
     Properties:
-      TableName: !Ref PackageTable
+      TableName: !Sub "package-table-${StageName}"
       PrimaryKey:
         Name: PackageName
         Type: String
 
-  FanoutStatus:
+  FanoutStatusTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Ref FanoutStatusTable
+      TableName: !Sub "fanout-status-${StageName}"
       AttributeDefinitions:
         - AttributeName: PackageName
           AttributeType: S
@@ -579,11 +553,5 @@ Outputs:
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
   RetrievePkgbuildApi:
-    Description: "API Gateway endpoint URL for Prod stage for PKGBUILD Retriever function"
-    Value: !Sub "https://${RetrievePkgbuildApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/update"
-  PackageUpdateFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt PackageUpdateFunction.Arn
-  PackageUpdateFunctionIamRole:
-    Description: "Implicit IAM Role created for Package Update function"
-    Value: !GetAtt PackageUpdateFunctionRole.Arn
+    Description: "API Gateway endpoint URL for `StageName` stage for PKGBUILD Retriever function"
+    Value: !Sub "https://${RetrievePkgbuildApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/update"
