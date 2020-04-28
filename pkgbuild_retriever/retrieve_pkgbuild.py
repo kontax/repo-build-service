@@ -37,7 +37,7 @@ def lambda_handler(event, context):
 
     # Pull latest PKGBUILD
     print(f"Found PKGBUILD at {pkgbuild_location}")
-    pkgbuild_url = f"https://raw.githubusercontent.com/{full_name}/master/{pkgbuild_location}"
+    pkgbuild_url = f"https://raw.githubusercontent.com/{full_name}/{branch}/{pkgbuild_location}"
     pkgbuild = requests.get(pkgbuild_url).text
     github_repository = f"https://github.com/{full_name}.git"
     payload = {"payload": pkgbuild, "url": github_repository}
