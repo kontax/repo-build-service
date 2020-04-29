@@ -457,31 +457,37 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "package-update-queue-${StageName}"
+      VisibilityTimeout: 600
 
   PkgbuildParserQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "pkgbuild-parser-queue-${StageName}"
+      VisibilityTimeout: 10
 
   FanoutStarterQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "fanout-starter-queue-${StageName}"
+      VisibilityTimeout: 60
 
   BuildFunctionQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "build-function-queue-${StageName}"
+      VisibilityTimeout: 60
 
   FanoutQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "fanout-queue-${StageName}"
+      VisibilityTimeout: 30
 
   MetapackageQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "metapackage-queue-${StageName}"
+      VisibilityTimeout: 20
 
   BuildQueue:
     Type: AWS::SQS::Queue
