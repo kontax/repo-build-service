@@ -1,13 +1,13 @@
 import json
 import os
 
-from aws import get_dynamo_resource, invoke_lambda, send_to_queue
+from aws import get_dynamo_resource, send_to_queue
 from common import return_code
 from enums import Status
 
 FANOUT_QUEUE = os.environ.get('FANOUT_QUEUE')
 PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
-BUILD_FUNC = os.environ.get('BUILD_FUNC')
+BUILD_FUNCTION_QUEUE = os.environ.get('BUILD_FUNCTION_QUEUE')
 PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
 
 
@@ -77,4 +77,5 @@ def process_package(package):
     send_to_queue(FANOUT_QUEUE, json.dumps(message))
 
     # Add them to the build queue and start the build VM
-    invoke_lambda(BUILD_FUNC, {"PackageName": package, "Repo": PERSONAL_REPO})
+    send_to_queue(BUILD_FUNCTION_QUEUE, {"PackageName": package, "Repo": PERSONAL_REPO})
+

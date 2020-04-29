@@ -2,10 +2,10 @@ import json
 import os
 import re
 
-from aws import invoke_lambda
+from aws import send_to_queue
 from common import return_code
 
-NEXT_FUNC = os.environ.get('NEXT_FUNC')
+NEXT_QUEUE = os.environ.get('NEXT_QUEUE')
 
 
 def lambda_handler(event, context):
@@ -75,4 +75,5 @@ def run(pkgbuild_file):
     pkgbuild_json.pop('payload', None)
 
     # Send to next function
-    invoke_lambda(NEXT_FUNC, pkgbuild_json)
+    send_to_queue(NEXT_QUEUE, pkgbuild_json)
+

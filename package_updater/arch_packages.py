@@ -1,7 +1,7 @@
 import lzma
 import gzip
+import requests
 
-from botocore.vendored import requests
 from io import BytesIO
 from tarfile import TarFile
 

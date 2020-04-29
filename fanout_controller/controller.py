@@ -3,13 +3,13 @@ import os
 
 from boto3.dynamodb.conditions import Key
 
-from aws import get_dynamo_resource, invoke_lambda
+from aws import get_dynamo_resource, send_to_queue
 from common import return_code
 from enums import Status
 
 FANOUT_STATUS = os.environ.get('FANOUT_STATUS')
-METAPACKAGE_BUILDER = os.environ.get('METAPACKAGE_BUILDER')
-PACKAGE_UPDATER = os.environ.get('PACKAGE_UPDATER')
+METAPACKAGE_QUEUE = os.environ.get('METAPACKAGE_QUEUE')
+PACKAGE_UPDATE_QUEUE = os.environ.get('PACKAGE_UPDATE_QUEUE')
 
 
 def lambda_handler(event, context):
@@ -26,7 +26,7 @@ def lambda_handler(event, context):
             print("Fanout status complete")
             clear_table()
             print("Updating package table")
-            invoke_lambda(PACKAGE_UPDATER, {})
+            send_to_queue(PACKAGE_UPDATER, {})
             return return_code(200, {"status": "Fanout status complete"})
 
         # Handle the message and set the final status - this is all we need to return
@@ -137,5 +137,6 @@ def build_metapackage(fanout_table):
     """
     print("All packages finished - invoking the metapackage builder")
     resp = fanout_table.query(KeyConditionExpression=Key('PackageName').eq("GIT_REPO"))
-    invoke_lambda(METAPACKAGE_BUILDER, {"git_url": resp['Items'][0]['GitUrl']})
+    send_to_queue(METAPACKAGE_BUILDER, {"git_url": resp['Items'][0]['GitUrl']})
     fanout_table.delete_item(Key={"PackageName": "GIT_REPO"})
+

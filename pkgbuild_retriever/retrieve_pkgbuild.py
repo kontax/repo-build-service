@@ -4,10 +4,10 @@ import requests
 from urllib.parse import unquote
 
 import github_token_validator
-from aws import invoke_lambda
+from aws import send_to_queue
 from common import return_code
 
-NEXT_FUNC = os.environ.get("NEXT_FUNC")
+NEXT_QUEUE = os.environ.get("NEXT_QUEUE")
 STAGE_NAME = os.environ.get("STAGE_NAME")
 
 
@@ -42,8 +42,7 @@ def lambda_handler(event, context):
     github_repository = f"https://github.com/{full_name}.git"
     payload = {"payload": pkgbuild, "url": github_repository}
 
-    response = invoke_lambda(NEXT_FUNC, payload)
-    print(response)
+    send_to_queue(NEXT_QUEUE, payload)
 
     return return_code(200, {'status': 'PKGBUILD extracted'})
 

@@ -3,10 +3,10 @@ import hashlib
 import hmac
 import json
 import os
+import requests
 import sys
 
 import boto3
-from botocore.vendored import requests
 
 ALGORITHM = 'AWS4-HMAC-SHA256'
 
