@@ -1,0 +1,9 @@
+PackageUpdateFunction
+
+RepoUpdateFunction
+
+PkgbuildRetrieverFunction
+ - Validating the github token
+ - Check correct URL is passed for different branches
+ - 401 on no PKGBUILD
+
