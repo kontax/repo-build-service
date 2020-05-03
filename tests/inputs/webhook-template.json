@@ -21,7 +21,7 @@
         "X-Forwarded-Proto": "https",
         "X-GitHub-Delivery": "a9ed58d0-441f-11e9-8186-4fbc35cd3729",
         "X-GitHub-Event": "ping",
-        "X-Hub-Signature": "sha1=24863b92300d338d45536cd7dde72edf040b4fc0"
+        "X-Hub-Signature": ""
     },
     "multiValueHeaders": {
         "Accept": [
@@ -79,7 +79,7 @@
             "ping"
         ],
         "X-Hub-Signature": [
-            "sha1=24863b92300d338d45536cd7dde72edf040b4fc0"
+            ""
         ]
     },
     "queryStringParameters": "None",

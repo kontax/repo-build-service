@@ -11,21 +11,12 @@ import boto3
 ALGORITHM = 'AWS4-HMAC-SHA256'
 
 
-def invoke_lambda(func_name, payload):
-    client = boto3.client('lambda')
-    payload = json.dumps(payload)
-    response = client.invoke(
-        FunctionName=func_name,
-        InvocationType='Event',
-        LogType='None',
-        Payload=payload
-    )
-    return response
-
-
 def send_to_queue_name(queue_name, message):
     # Create SQS client
-    sqs = boto3.resource('sqs')
+    if os.getenv("AWS_SAM_LOCAL"):
+        sqs = boto3.resource('sqs', endpoint_url='http://localhost:4566')
+    else:
+        sqs = boto3.resource('sqs')
     # Get queue
     queue = sqs.get_queue_by_name(QueueName=queue_name)
     # Send message
@@ -37,7 +28,10 @@ def send_to_queue_name(queue_name, message):
 
 def send_to_queue(queue_url, message):
     # Create SQS client
-    sqs = boto3.client('sqs')
+    if os.getenv("AWS_SAM_LOCAL"):
+        sqs = boto3.client('sqs', endpoint_url='http://localhost:4566')
+    else:
+        sqs = boto3.client('sqs')
     response = sqs.send_message(
         QueueUrl=queue_url,
         MessageBody=(message)
@@ -57,6 +51,7 @@ def start_ecs_task(cluster, task_definition):
     """
     print(f"Starting new ECS task to build the package(s)")
 
+    # Note: There's no ECS in the free version of localstack
     client = boto3.client('ecs')
     response = client.run_task(
         cluster=cluster,
