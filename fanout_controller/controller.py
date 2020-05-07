@@ -26,7 +26,7 @@ def lambda_handler(event, context):
             print("Fanout status complete")
             clear_table()
             print("Updating package table")
-            send_to_queue(PACKAGE_UPDATER, {})
+            send_to_queue(PACKAGE_UPDATE_QUEUE, {})
             return return_code(200, {"status": "Fanout status complete"})
 
         # Handle the message and set the final status - this is all we need to return
@@ -137,6 +137,6 @@ def build_metapackage(fanout_table):
     """
     print("All packages finished - invoking the metapackage builder")
     resp = fanout_table.query(KeyConditionExpression=Key('PackageName').eq("GIT_REPO"))
-    send_to_queue(METAPACKAGE_BUILDER, {"git_url": resp['Items'][0]['GitUrl']})
+    send_to_queue(METAPACKAGE_QUEUE, {"git_url": resp['Items'][0]['GitUrl']})
     fanout_table.delete_item(Key={"PackageName": "GIT_REPO"})
 
