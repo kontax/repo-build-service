@@ -3,7 +3,22 @@ PackageUpdateFunction
 RepoUpdateFunction
 
 PkgbuildRetrieverFunction
- - Validating the github token
- - Check correct URL is passed for different branches
- - 401 on no PKGBUILD
- - Repository name matches expected
+ - DONE Validating the github token
+ - DONE Check correct URL is passed for different branches
+ - DONE 401 on no PKGBUILD
+ - DONE Repository name matches expected
+ - DONE Stage = master for master, dev for everything else (compared to branch)
+
+PkgbuildParserFunction
+ - DONE Dependencies match
+ - Handles multiple messages
+ - Test different stages
+ - Different branch names
+ - Comments get removed
+ - Lines without depends get removed
+ - What happens when depends isn't correct?
+
+FanoutStarter
+ - Check packages to build are only those not in the table
+ - Check metapackage is built last
+ - 

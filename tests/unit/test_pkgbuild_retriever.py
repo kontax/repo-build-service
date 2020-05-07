@@ -46,29 +46,15 @@ def get_input(input_name, token):
 
     return output
 
-
-def test_validation_fails_on_incorrect_token():
-
-    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
-
-    os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
-    webhook = get_input('master_commit', "INCORRECT_SECRET")
-
-    resp = lambda_handler(webhook, None)
-    assert resp['statusCode'] == 401
-    assert resp['body'] == \
-        "X-Hub-Signature is incorrect. Github webhook token doesn't match"
-
 @mock_sqs
 def test_git_url_is_correct():
-
-    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
     new_queue = sqs.create_queue(QueueName="PkgbuildParserQueue")
 
     os.environ["NEXT_QUEUE"] = new_queue.url
     os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
 
     webhook = get_input(
         'master_commit',
@@ -80,20 +66,110 @@ def test_git_url_is_correct():
     assert len(messages) == 1
 
     pkgbuild = json.loads(messages[0].body)
-    url = pkgbuild['url']
+    url = pkgbuild['git_url']
     assert url == 'https://github.com/kontax/arch-packages.git'
 
 
-@mock_sqs
-def test_payload_gets_correctly_received():
+def test_validation_fails_on_incorrect_token():
 
+    os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    webhook = get_input('master_commit', "INCORRECT_SECRET")
     from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
+
+    resp = lambda_handler(webhook, None)
+    assert resp['statusCode'] == 401
+    assert resp['body'] == \
+        "X-Hub-Signature is incorrect. Github webhook token doesn't match"
+
+
+@mock_sqs
+def test_git_branch_is_master():
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
     new_queue = sqs.create_queue(QueueName="PkgbuildParserQueue")
 
     os.environ["NEXT_QUEUE"] = new_queue.url
     os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
+
+    webhook = get_input(
+        'master_commit',
+        os.environ.get('GITHUB_WEBHOOK_SECRET'))
+
+    resp = lambda_handler(webhook, None)
+    assert resp['statusCode'] == 200
+    messages = new_queue.receive_messages()
+    assert len(messages) == 1
+
+    pkgbuild = json.loads(messages[0].body)
+    branch = pkgbuild['git_branch']
+    assert branch == 'master'
+
+    stage = pkgbuild['stage']
+    assert stage == 'prod'
+
+@mock_sqs
+def test_git_branch_is_dev():
+
+    sqs = boto3.resource("sqs", region_name='eu-west-1')
+    new_queue = sqs.create_queue(QueueName="PkgbuildParserQueue")
+
+    os.environ["NEXT_QUEUE"] = new_queue.url
+    os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
+
+    webhook = get_input(
+        'dev_commit',
+        os.environ.get('GITHUB_WEBHOOK_SECRET'))
+
+    resp = lambda_handler(webhook, None)
+    assert resp['statusCode'] == 200
+    messages = new_queue.receive_messages()
+    assert len(messages) == 1
+
+    pkgbuild = json.loads(messages[0].body)
+    branch = pkgbuild['git_branch']
+    assert branch == 'dev'
+
+    stage = pkgbuild['stage']
+    assert stage == 'dev'
+
+
+@mock_sqs
+def test_git_branch_is_random():
+
+    sqs = boto3.resource("sqs", region_name='eu-west-1')
+    new_queue = sqs.create_queue(QueueName="PkgbuildParserQueue")
+
+    os.environ["NEXT_QUEUE"] = new_queue.url
+    os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
+
+    webhook = get_input(
+        'random_branch',
+        os.environ.get('GITHUB_WEBHOOK_SECRET'))
+
+    resp = lambda_handler(webhook, None)
+    assert resp['statusCode'] == 200
+    messages = new_queue.receive_messages()
+    assert len(messages) == 1
+
+    pkgbuild = json.loads(messages[0].body)
+    branch = pkgbuild['git_branch']
+    assert branch == 'random'
+
+    stage = pkgbuild['stage']
+    assert stage == 'dev'
+
+@mock_sqs
+def test_payload_gets_correctly_received():
+
+    sqs = boto3.resource("sqs", region_name='eu-west-1')
+    new_queue = sqs.create_queue(QueueName="PkgbuildParserQueue")
+
+    os.environ["NEXT_QUEUE"] = new_queue.url
+    os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
 
     webhook = get_input(
         'master_commit',
@@ -109,3 +185,20 @@ def test_payload_gets_correctly_received():
     payload_first_line = payload.split()[0]
     assert payload_first_line == "pkgbase='couldinho'"
 
+
+@mock_sqs
+def test_no_commit_throws_401():
+
+    sqs = boto3.resource("sqs", region_name='eu-west-1')
+    new_queue = sqs.create_queue(QueueName="PkgbuildParserQueue")
+
+    os.environ["NEXT_QUEUE"] = new_queue.url
+    os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
+
+    webhook = get_input(
+        'no_commits',
+        os.environ.get('GITHUB_WEBHOOK_SECRET'))
+
+    resp = lambda_handler(webhook, None)
+    assert resp['statusCode'] == 401
