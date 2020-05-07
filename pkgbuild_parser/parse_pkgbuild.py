@@ -10,7 +10,8 @@ NEXT_QUEUE = os.environ.get('NEXT_QUEUE')
 
 def lambda_handler(event, context):
     print(event)
-    run(json.dumps(event))
+    for record in event['Records']:
+        run(record['body'])
     return return_code(200, {'status': "PKGBUILD added to queue"})
 
 
@@ -75,5 +76,6 @@ def run(pkgbuild_file):
     pkgbuild_json.pop('payload', None)
 
     # Send to next function
-    send_to_queue(NEXT_QUEUE, pkgbuild_json)
+    print(f"NEXT_QUEUE: {NEXT_QUEUE}")
+    send_to_queue(NEXT_QUEUE, json.dumps(pkgbuild_json))
 
