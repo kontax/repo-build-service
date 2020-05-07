@@ -8,14 +8,11 @@ import github_token_validator
 from aws import send_to_queue
 from common import return_code
 
+NEXT_QUEUE = os.environ.get("NEXT_QUEUE")
 
 def lambda_handler(event, context):
     #print(event)
-
-    next_queue = os.environ.get("NEXT_QUEUE")
-    stage_name = os.environ.get("STAGE_NAME")
-
-    print(f"next_queue: {next_queue}")
+    print(f"NEXT_QUEUE: {NEXT_QUEUE}")
 
     # Validate github token
     response = github_token_validator.validate(event)
@@ -27,7 +24,7 @@ def lambda_handler(event, context):
     full_name = get_full_name(commit_payload)
 
     branch = commit_payload['ref'].replace('refs/heads/', '')
-    stage = 'master' if branch == 'master' else 'dev'
+    stage = 'prod' if branch == 'master' else 'dev'
 
     pkgbuild_location = get_pkgbuild_location(commit_payload)
     if pkgbuild_location is None:
@@ -39,9 +36,14 @@ def lambda_handler(event, context):
     pkgbuild_url = f"https://raw.githubusercontent.com/{full_name}/{branch}/{pkgbuild_location}"
     pkgbuild = requests.get(pkgbuild_url).text
     github_repository = f"https://github.com/{full_name}.git"
-    payload = json.dumps({"payload": pkgbuild, "url": github_repository})
+    payload = json.dumps({
+        "payload": pkgbuild,
+        "git_url": github_repository,
+        "git_branch": branch,
+        "stage": stage
+    })
 
-    send_to_queue(next_queue, payload)
+    send_to_queue(NEXT_QUEUE, payload)
 
     return return_code(200, {'status': 'PKGBUILD extracted'})
 

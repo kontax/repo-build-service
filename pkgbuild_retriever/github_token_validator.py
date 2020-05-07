@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 
+TOKEN = os.environ.get("GITHUB_WEBHOOK_SECRET")
 
 def validate(event):
     """Validates the payload sent to ensure it comes from a valid Github repository
@@ -14,14 +15,13 @@ def validate(event):
         dict: An HTTP response outlining whether validation passed or threw an error
     """
 
-    token = os.environ.get("GITHUB_WEBHOOK_SECRET")
     headers = event['headers']
     sig = headers['X-Hub-Signature'].split('=')[1]
     github_event = headers['X-GitHub-Event']
     github_id = headers['X-GitHub-Delivery']
-    digest = _get_digest(token, event['body'])
+    digest = _get_digest(TOKEN, event['body'])
 
-    if token is None:
+    if TOKEN is None:
         return _get_error(401, "Must provide a 'GITHUB_WEBHOOK_SECRET' env variable")
 
     if github_event is None:
