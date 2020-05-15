@@ -1,0 +1,6 @@
+{
+    "git_url": "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+    "git_branch": "master",
+    "stage": "prod",
+    "payload": "pkgbase='couldinho'\npkgname=(couldinho-base couldinho-desktop couldinho-laptop)\n\npackage_couldinho-base() {\n    install=couldinho-base.install\n\n    install -Dm 0644 base/etc/profile.d/couldinho-base.sh '$pkgdir/etc/profile.d/couldinho-base.sh'\n\n    depends=(\n        bash\n        linux\n        vim\n    depends+=(\n        zsh\n    )\n\n    install -Dm 0644 base/etc/zsh/zshrc '$pkgdir/etc/zsh/couldinho-zshrc'\n}\n\npackage_couldinho-desktop() {\n    install=couldinho-desktop.install\n\n    install -Dm 0644 desktop/etc/profile.d/couldinho-desktop.sh '$pkgdir/etc/profile.d/couldinho-desktop.sh'\n\n    depends=(\n        couldinho-base\n    )\n\n    depends+=(\n        xorg-server             \n        mce-dev             \n    )\n\n    install -Dm 0644 desktop/etc/X11/xorg.conf.d/00-keyboard.conf \\\n                    '$pkgdir/etc/X11/xorg.conf.d/00-keyboard.conf'\n}\"}"
+}

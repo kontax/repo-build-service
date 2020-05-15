@@ -1,11 +1,13 @@
 import json
 import os
 import re
+import string
 
 from aws import send_to_queue
 from common import return_code
 
 NEXT_QUEUE = os.environ.get('NEXT_QUEUE')
+ALLOWED_CHARS = set(string.ascii_lowercase + string.digits + '@._+-')
 
 
 def lambda_handler(event, context):
@@ -48,6 +50,10 @@ def _get_dependencies(pkgbuild):
             # Remove comments
             pkgs = [pkg for pkg in re.sub('#.*', '', line).strip().split(' ')
                     if len(pkg) > 0]
+
+            # Ensure there are no issues with the packages by checking if there
+            # are any disallowed characters within the package name.
+            assert(all([set(x) <= ALLOWED_CHARS for x in pkgs]))
             dependencies.extend(pkgs)
 
         # Continue until the closing bracket
