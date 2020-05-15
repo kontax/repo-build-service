@@ -1,0 +1,6 @@
+{
+ "git_url": "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+ "git_branch": "master",
+ "stage": "prod",
+ "dependencies": ["bash", "linux", "vim", "zsh", "couldinho-base", "xorg-server"]
+}
