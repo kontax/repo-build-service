@@ -20,7 +20,7 @@ def lambda_handler(event, context):
 
     for record in event['Records']:
 
-        json_record = json.loads(record)
+        json_record = json.loads(record['body'])
         # Get Dependencies
         deps = json_record['dependencies']
         git_url = json_record['git_url']
@@ -57,7 +57,7 @@ def get_packages_to_build(package_table, pkgbuild_packages):
     return to_build
 
 
-def process_packages(build_packages, metapackage_url):
+def process_packages(build_packages, metapackage_url, branch, stage):
     """ Add packages to be built to a build queue including the metapackage
     URL for building after completion.
 
@@ -66,27 +66,33 @@ def process_packages(build_packages, metapackage_url):
                                of package names
         metapackage_url (str): The URL of the repository for the metapackage 
                                to build after the rest
+        branch (str):          Branch of the triggering git commit
+        stage (str):           Whether the commit is from a prod or dev branch
     """
 
     # Build the other packages
     for pkg in build_packages:
-        process_package(pkg)
+        process_package(pkg, branch, stage)
 
     # Store the metapackage URL for building on completion
     metapackage_msg = {
         "PackageName": "GIT_REPO",
         "BuildStatus": Status.Initialized.name,
         "IsMeta": True,
-        "GitUrl": metapackage_url
+        "GitUrl": metapackage_url,
+        "Branch": branch,
+        "Stage": stage
     }
     send_to_queue(FANOUT_QUEUE, json.dumps(metapackage_msg))
 
 
-def process_package(package):
+def process_package(package, branch, stage):
     """ Adds packages to the build queue and updates their status
 
     Args:
         package (str): The package to check
+        branch (str):  Branch of the triggering git commit
+        stage (str):   Whether the commit is from a prod or dev branch
     """
 
     print(f"Building package: {package}")
@@ -95,11 +101,18 @@ def process_package(package):
     message = {
         "PackageName": package,
         "BuildStatus": Status.Building.name,
-        "IsMeta": False
+        "IsMeta": False,
+        "Branch": branch,
+        "Stage": stage
     }
     send_to_queue(FANOUT_QUEUE, json.dumps(message))
 
     # Add them to the build queue and start the build VM
-    build_msg = {"PackageName": package, "Repo": PERSONAL_REPO}
-    send_to_queue(BUILD_FUNCTION_QUEUE, build_msg)
+    build_msg = {
+        "PackageName": package,
+        "Repo": PERSONAL_REPO,
+        "Branch": branch,
+        "Stage": stage
+    }
+    send_to_queue(BUILD_FUNCTION_QUEUE, json.dumps(build_msg))
 
