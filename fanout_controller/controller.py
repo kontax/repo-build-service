@@ -28,7 +28,7 @@ def lambda_handler(event, context):
             print("Fanout status complete")
             clear_table()
             print("Updating package table")
-            send_to_queue(PACKAGE_UPDATE_QUEUE, {})
+            send_to_queue(PACKAGE_UPDATE_QUEUE, json.dumps({}))
             return return_code(200, {"status": "Fanout status complete"})
 
         # Handle the message and set the final status, including updating
@@ -69,7 +69,8 @@ def handle_fanout_status(package_message):
     fanout_table = dynamo.Table(FANOUT_STATUS)
     update_package_state(fanout_table, package_state)
 
-    # Delete failed items
+    # Delete failed items - this doesn't end the process as we still want
+    # a new metapackage to be built regardless of the failed packages.
     delete_failed(fanout_table)
 
     # Check remaining items
@@ -158,6 +159,7 @@ def build_metapackage(fanout_table):
     print("All packages finished - invoking the metapackage builder")
     resp = fanout_table.query(
             KeyConditionExpression=Key('PackageName').eq("GIT_REPO"))
-    send_to_queue(METAPACKAGE_QUEUE, {"git_url": resp['Items'][0]['GitUrl']})
+    msg = {"git_url": resp['Items'][0]['GitUrl']}
+    send_to_queue(METAPACKAGE_QUEUE, json.dumps(msg))
     fanout_table.delete_item(Key={"PackageName": "GIT_REPO"})
 

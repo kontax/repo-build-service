@@ -1,4 +1,6 @@
 PackageUpdateFunction
+ - Add new packages to table
+ - Delete old packages from table
 
 RepoUpdateFunction
 
@@ -12,13 +14,28 @@ PkgbuildRetrieverFunction
 PkgbuildParserFunction
  - DONE Dependencies match
  - Handles multiple messages
- - Test different stages
- - Different branch names
- - Comments get removed
- - Lines without depends get removed
+ - DONE: Test different stages
+ - DONE: Different branch names
+ - DONE: Comments get removed
+ - DONE: Lines without depends get removed
+ - DONE: Packages with invalid names throw an assertion error
  - What happens when depends isn't correct?
 
 FanoutStarter
- - Check packages to build are only those not in the table
- - Check metapackage is built last
- - 
+ - DONE Check packages to build are only those not in the table
+ - DONE Check metapackage is built last
+ - DONE Check build queue messages contain correct info
+ - DONE Check fanout queue messages contain correct info
+
+FanoutController
+ - DONE Table gets updated to correct status
+ - DONE Metapackage gets built on completion
+ - DONE Table clears on completion
+ - DONE PackageUpdateQueue gets notified on completion
+ - DONE Check for no metapackage build while packages are still building
+ - DONE Check failed packages get removed from table
+
+BuildFunction
+ - Starts ECS
+ - Queue contains correct message
+

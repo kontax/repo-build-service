@@ -1,0 +1,8 @@
+{
+ "PackageName": "GIT_REPO",
+ "BuildStatus": "Initialized",
+ "IsMeta": true,
+ "GitUrl": "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+ "Branch": "master",
+ "Stage": "prod"
+}
