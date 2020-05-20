@@ -18,11 +18,12 @@ def lambda_handler(event, context):
 
 
 def _get_dependencies(pkgbuild):
-    """Extracts items from within 'depends()' sections in the PKGBUILD
+    """ Extracts items from within 'depends()' sections in the PKGBUILD
 
-    The PKGBUILD is looped through line by line, noting when we are within a depends() statement
-    and extracting every word prior to a comment (#) until the closing bracket. Multiple packages
-    on a single line are handled by being split by whitespace.
+    The PKGBUILD is looped through line by line, noting when we are within a 
+    depends() statement and extracting every word prior to a comment (#) until 
+    the closing bracket. Multiple packages on a single line are handled by 
+    being split by whitespace.
 
     Args:
         pkgbuild (str): The PKGBUILD file
@@ -65,7 +66,7 @@ def _get_dependencies(pkgbuild):
 
 
 def run(pkgbuild_file):
-    """Extracts metapackages and their dependencies from a PKGBUILD
+    """ Extracts metapackages and their dependencies from a PKGBUILD
 
     Args:
         pkgbuild_file (json): The PKGBUILD file for the metapackages

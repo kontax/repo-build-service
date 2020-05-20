@@ -4,12 +4,14 @@ import json
 def return_code(code, body):
     """Returns a JSON response
 
-    :param (int) code: The HTTP response code
-    :param (dict) body: The data to return
+    Args:
+        code (int): HTTP response code
+        body (dict): Data to return
 
-    :return: A JSON object containing the code and body
-    :rtype: dict
+    Returns:
+        (dict): JSON object containing the code and body
     """
+
     return {
         "statusCode": code,
         "body": json.dumps(body)

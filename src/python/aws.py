@@ -72,14 +72,18 @@ def start_ecs_task(cluster, task_definition):
 
 
 def get_running_task_count(cluster, task_definition):
-    """ Retrieves the number of ECS tasks for a specified cluster and task family that are currently either
-    running or are in a pending state waiting to be run.
+    """ Retrieves the number of ECS tasks for a specified cluster and task 
+    family that are currently either running or are in a pending state waiting 
+    to be run.
 
-    :param (str) cluster: The name of the cluster containing the running tasks
-    :param (str) task_definition: The family of task to search for
-    :return: The number of tasks in a running/soon to be running state
-    :rtype: int
+    Args:
+        cluster (str): The name of the cluster containing the running tasks
+        task_definition (str): The family of task to search for
+
+    Returns:
+        (int): The number of tasks in a running/soon to be running state
     """
+
     client = boto3.client('ecs')
     response = client.list_tasks(
         cluster=cluster,
@@ -90,7 +94,11 @@ def get_running_task_count(cluster, task_definition):
 
 
 def get_dynamo_resource():
-    """Get a dynamodb resource depending on which environment the function is running in"""
+    """
+    Get a dynamodb resource depending on which environment the function is 
+    running in
+    """
+
     if os.getenv("AWS_SAM_LOCAL"):
         dynamo = boto3.resource('dynamodb', endpoint_url="http://dynamodb:8000")
     else:
@@ -128,18 +136,23 @@ class ExecuteApiRequest:
 
         # Create canonical request
         signed_headers = 'content-type;host;x-amz-date'
-        canonical_request = self._get_canonical_request(payload, amz_date, signed_headers)
+        canonical_request = self._get_canonical_request(
+                payload, amz_date, signed_headers)
 
         # Create string to sign
         credential_scope = date_stamp + '/' + self.region + '/' + self.service + '/aws4_request'
-        string_to_sign = self._get_string_to_sign(credential_scope, amz_date, canonical_request)
+        string_to_sign = self._get_string_to_sign(
+                credential_scope, amz_date, canonical_request)
 
         # Calculate signature
         signing_key = self._get_signature_key(self.secret_key, date_stamp)
-        signature = hmac.new(signing_key, (string_to_sign).encode('utf-8'), hashlib.sha256).hexdigest()
+        signature = hmac.new(
+                signing_key, (string_to_sign).encode('utf-8'), 
+                hashlib.sha256).hexdigest()
 
         # Get authorization header
-        authorization_header = self._get_auth_header(credential_scope, signed_headers, signature)
+        authorization_header = self._get_auth_header(
+                credential_scope, signed_headers, signature)
 
         # Add to headers
         headers = {'Content-Type': self.content_type,
@@ -169,7 +182,8 @@ class ExecuteApiRequest:
 
     @staticmethod
     def _get_string_to_sign(credential_scope, amz_date, canonical_request):
-        request_digest = hashlib.sha256(canonical_request.encode('utf-8')).hexdigest()
+        request_digest = hashlib.sha256(
+                canonical_request.encode('utf-8')).hexdigest()
         string_to_sign = ALGORITHM + '\n' + \
                          amz_date + '\n' + \
                          credential_scope + '\n' + \
@@ -190,7 +204,9 @@ class ExecuteApiRequest:
 
     def _get_auth_header(self, credential_scope, signed_headers, signature):
         authorization_header = ALGORITHM + ' ' + \
-                               'Credential=' + self.access_key + '/' + credential_scope + ', ' + \
+                               'Credential=' + self.access_key + '/' + \
+                                    credential_scope + ', ' + \
                                'SignedHeaders=' + signed_headers + ', ' + \
                                'Signature=' + signature
         return authorization_header
+

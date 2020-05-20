@@ -11,8 +11,6 @@ from common import return_code
 NEXT_QUEUE = os.environ.get("NEXT_QUEUE")
 
 def lambda_handler(event, context):
-    #print(event)
-    print(f"NEXT_QUEUE: {NEXT_QUEUE}")
 
     # Validate github token
     response = github_token_validator.validate(event)
@@ -29,7 +27,11 @@ def lambda_handler(event, context):
     pkgbuild_location = get_pkgbuild_location(commit_payload)
     if pkgbuild_location is None:
         print("No PKGBUILD commit found, exiting")
-        return return_code(401, {'headers': {'Content-Type': 'text/plain'}, 'body': 'No updated PKGBUILD found'})
+        retval = {
+            'headers': { 'Content-Type': 'text/plain' }, 
+            'body': 'No updated PKGBUILD found'
+        }
+        return return_code(401, retval)
 
     # Pull latest PKGBUILD
     print(f"Found PKGBUILD at {pkgbuild_location}")
