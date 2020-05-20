@@ -1,6 +1,6 @@
 PackageUpdateFunction
- - Add new packages to table
- - Delete old packages from table
+ - DONE Add new packages to table
+ - DONE Delete old packages from table
 
 RepoUpdateFunction
 

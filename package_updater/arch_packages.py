@@ -1,6 +1,6 @@
 import lzma
 import gzip
-import requests
+import urllib
 
 from io import BytesIO
 from tarfile import TarFile
@@ -17,6 +17,7 @@ def _extract_archive_from_stream(stream):
     Returns:
         TarFile: The decompressed TarFile object
     """
+
     try:
         tar = TarFile(fileobj=gzip.open(stream), mode='r')
     except OSError:
@@ -27,16 +28,18 @@ def _extract_archive_from_stream(stream):
 
 def _extract_pkg_name(tar, files):
     """
-    Extracts a list of package names from the tarfile and list of paths for each 'desc' file
-    within the archive.
+    Extracts a list of package names from the tarfile and list of paths for
+    each 'desc' file within the archive.
 
     Args:
         tar (TarFile): The archive containing package details
         files (list): A list of paths to every 'desc' file within the archive
 
     Returns:
-        list: A list of strings containing the package names for each package within the archive
+        list: A list of strings containing the package names for each package
+              within the archive
     """
+
     filenames = []
 
     for desc_file in files:
@@ -65,18 +68,20 @@ def _extract_pkg_name(tar, files):
 
 
 def get_packages(uri):
-    """Gets a collection of packages contained within the repository URL specified.
+    """Gets a collection of packages contained within the repository URL
+    specified.
 
     Args:
         uri (str): The full path of the package database location.
-    
+
     Returns:
         list: A collection of package names within the repository
     """
 
     # Pull the DB file from the URI
     print(f"Pulling package database from {uri}")
-    stream = BytesIO(requests.get(uri).content)
+    with urllib.request.urlopen(uri) as h:
+        stream = BytesIO(h.read())
 
     # Decompress and unpack the DB file
     print("Decompressing downloaded DB file")

@@ -13,7 +13,7 @@ from moto.dynamodb2 import dynamodb_backend2
 # Get the root path of the project to allow importing
 ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 sys.path.append(ROOT_PATH)
-sys.path.append(os.path.join(ROOT_PATH, "fanout_starter"))
+sys.path.append(os.path.join(ROOT_PATH, "fanout_controller"))
 sys.path.append(os.path.join(ROOT_PATH, "src/python"))
 
 TEMPLATE = os.path.join(ROOT_PATH, 'tests/inputs/sqs-template.json')
