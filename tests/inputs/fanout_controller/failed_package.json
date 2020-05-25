@@ -2,6 +2,5 @@
  "PackageName": "mce-dev",
  "BuildStatus": "Failed",
  "IsMeta": false,
- "Branch": "master",
- "Stage": "prod"
+ "repo": "couldinho-test"
 }

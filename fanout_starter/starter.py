@@ -9,6 +9,7 @@ FANOUT_QUEUE = os.environ.get('FANOUT_QUEUE')
 PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
 BUILD_FUNCTION_QUEUE = os.environ.get('BUILD_FUNCTION_QUEUE')
 PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
+DEV_REPO = os.environ.get('DEV_REPO')
 
 
 def lambda_handler(event, context):
@@ -75,13 +76,13 @@ def process_packages(build_packages, metapackage_url, branch, stage):
         process_package(pkg, branch, stage)
 
     # Store the metapackage URL for building on completion
+    repo = PERSONAL_REPO if branch == 'master' else DEV_REPO
     metapackage_msg = {
         "PackageName": "GIT_REPO",
         "BuildStatus": Status.Initialized.name,
         "IsMeta": True,
         "GitUrl": metapackage_url,
-        "Branch": branch,
-        "Stage": stage
+        "repo": repo
     }
     send_to_queue(FANOUT_QUEUE, json.dumps(metapackage_msg))
 
@@ -97,22 +98,21 @@ def process_package(package, branch, stage):
 
     print(f"Building package: {package}")
 
+    repo = PERSONAL_REPO if branch == 'master' else DEV_REPO
+
     # Update the status to say the package is building
     message = {
         "PackageName": package,
         "BuildStatus": Status.Building.name,
-        "IsMeta": False,
-        "Branch": branch,
-        "Stage": stage
+        "repo": repo,
+        "IsMeta": False
     }
     send_to_queue(FANOUT_QUEUE, json.dumps(message))
 
     # Add them to the build queue and start the build VM
     build_msg = {
         "PackageName": package,
-        "Repo": PERSONAL_REPO,
-        "Branch": branch,
-        "Stage": stage
+        "Repo": repo
     }
     send_to_queue(BUILD_FUNCTION_QUEUE, json.dumps(build_msg))
 

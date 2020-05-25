@@ -118,17 +118,18 @@ def update_package_state(fanout_table, package_state):
 
     Args:
         fanout_table (Table): Table containing the status of each package
-        package_state (dict): Name and state of hte package to update
+        package_state (dict): Name and state of the package to update
     """
 
     print(f"Updating state:\n{package_state}")
     fanout_table.update_item(
         Key={'PackageName': package_state['PackageName']},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': package_state['BuildStatus'],
             ':m': package_state.get('IsMeta'),
             ':g': package_state.get('GitUrl'),
+            ':r': package_state.get('repo'),
         }
     )
 
@@ -159,7 +160,10 @@ def build_metapackage(fanout_table):
     print("All packages finished - invoking the metapackage builder")
     resp = fanout_table.query(
             KeyConditionExpression=Key('PackageName').eq("GIT_REPO"))
-    msg = {"git_url": resp['Items'][0]['GitUrl']}
+    msg = {
+        "git_url": resp['Items'][0]['GitUrl'],
+        "repo": resp['Items'][0]['repo'],
+    }
     send_to_queue(METAPACKAGE_QUEUE, json.dumps(msg))
     fanout_table.delete_item(Key={"PackageName": "GIT_REPO"})
 

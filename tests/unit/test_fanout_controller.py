@@ -69,6 +69,7 @@ def test_fanout_status_table_gets_updated_with_regular_package(dynamodb_table):
         "PackageName": "mce-dev",
         "BuildStatus": "Initialized",
         "IsMeta": False,
+        "repo": "couldinho-test",
         "GitUrl": None
     }
 
@@ -119,11 +120,12 @@ def test_status_table_gets_cleared_on_completion(dynamodb_table):
     # Add a test item to the status table
     dynamodb_table.update_item(
         Key={'PackageName': 'GIT_REPO'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Complete",
             ':m': True,
-            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD"
+            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+            ':r': "couldinho-test"
         }
     )
 
@@ -150,28 +152,31 @@ def test_metapackage_gets_built_after_other_packages(dynamodb_table):
 
     # Queue item to check
     queue_output = {
-        "git_url": "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD"
+        "git_url": "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+        "repo": "couldinho-test"
     }
 
     # Add a test item to the status table
     dynamodb_table.update_item(
         Key={'PackageName': 'GIT_REPO'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Initialized",
             ':m': True,
-            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD"
+            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+            ':r': "couldinho-test"
         }
     )
 
     # Add the package currently building
     dynamodb_table.update_item(
         Key={'PackageName': 'mce-dev'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Building",
             ':m': False,
-            ':g': None
+            ':g': None,
+            ':r': "couldinho-test"
         }
     )
 
@@ -200,22 +205,24 @@ def test_no_metapackage_build_when_packages_still_building(dynamodb_table):
     # Add a test item to the status table
     dynamodb_table.update_item(
         Key={'PackageName': 'GIT_REPO'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Initialized",
             ':m': True,
-            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD"
+            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+            ':r': "couldinho-test"
         }
     )
 
     # Add a different package than the one being sent in the message
     dynamodb_table.update_item(
         Key={'PackageName': 'random-package'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Building",
             ':m': False,
-            ':g': None
+            ':g': None,
+            ':r': "couldinho-test"
         }
     )
 
@@ -244,33 +251,36 @@ def test_failed_packages_get_removed_from_table(dynamodb_table):
     # Add a test item to the status table
     dynamodb_table.update_item(
         Key={'PackageName': 'GIT_REPO'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Initialized",
             ':m': True,
-            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD"
+            ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
+            ':r': "couldinho-test"
         }
     )
 
     # Add a different package than the one being sent in the message
     dynamodb_table.update_item(
         Key={'PackageName': 'random-package'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Building",
             ':m': False,
-            ':g': None
+            ':g': None,
+            ':r': "couldinho-test"
         }
     )
 
     # Add the package that is going to fail
     dynamodb_table.update_item(
         Key={'PackageName': 'mce-dev'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
         ExpressionAttributeValues={
             ':s': "Building",
             ':m': False,
-            ':g': None
+            ':g': None,
+            ':r': "couldinho-test"
         }
     )
 

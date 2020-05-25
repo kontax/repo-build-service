@@ -22,6 +22,9 @@ Parameters:
   PersonalRepoBucket:
     Type: String
     Description: The name of the bucket of the personal repository
+  DevRepoBucket:
+    Type: String
+    Description: The name of the bucket used to store packages when testing
   RepoName:
     Type: String
     Description: The name of the personal repository - usually the name of the DB file without the extension
@@ -198,6 +201,7 @@ Resources:
           BUILD_FUNCTION_QUEUE: !Ref BuildFunctionQueue
           PACKAGE_TABLE: !Ref PackageTable
           PERSONAL_REPO: !Ref PersonalRepoBucket
+          DEV_REPO: !Ref DevRepoBucket
       Events:
         FanoutStarterQueue:
           Type: SQS
@@ -277,7 +281,6 @@ Resources:
       Environment:
         Variables:
           BUILD_FUNCTION_QUEUE: !Ref BuildFunctionQueue
-          PERSONAL_REPO: !Ref PersonalRepoBucket
           FANOUT_STATUS: !Ref FanoutStatusTable
       Events:
         MetapackageQueue:
@@ -410,6 +413,7 @@ Resources:
                   - s3:PutObjectAcl
                 Resource:
                   - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepoBucket, '/*' ] ]
+                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref DevRepoBucket, '/*' ] ]
                   - !GetAtt BuildQueue.Arn
               - Effect: Allow
                 Action:
@@ -530,8 +534,6 @@ Resources:
               Value: !Ref PushoverUser
             - Name: "REPO_NAME"
               Value: !Ref RepoName
-            - Name: "REPO_BUCKET"
-              Value: !Ref PersonalRepoBucket
             - Name: "REPO_ARCH"
               Value: !Ref RepoArch
             - Name: "SQS_QUEUE_URL"

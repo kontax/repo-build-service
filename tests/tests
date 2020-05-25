@@ -35,6 +35,10 @@ FanoutController
  - DONE Check for no metapackage build while packages are still building
  - DONE Check failed packages get removed from table
 
+MetapackageBuilder
+ - DONE List of built packages gets sent to queue
+ - DONE Correct repo is sent to queue
+
 BuildFunction
  - Starts ECS
  - Queue contains correct message

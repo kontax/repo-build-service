@@ -75,6 +75,7 @@ def test_build_package_status_is_set_to_building(dynamodb_table):
     os.environ["BUILD_FUNCTION_QUEUE"] = build_function_queue.url
     os.environ["PACKAGE_TABLE"] = "package-table"
     os.environ["PERSONAL_REPO"] = 'couldinho-test'
+    os.environ["DEV_REPO"] = 'couldinho-test-dev'
 
     from fanout_starter.starter import lambda_handler
 
@@ -108,6 +109,7 @@ def test_build_package_sends_message_to_build_function_queue(dynamodb_table):
     os.environ["BUILD_FUNCTION_QUEUE"] = build_function_queue.url
     os.environ["PACKAGE_TABLE"] = "package-table"
     os.environ["PERSONAL_REPO"] = 'couldinho-test'
+    os.environ["DEV_REPO"] = 'couldinho-test-dev'
 
     from fanout_starter.starter import lambda_handler
 
@@ -120,8 +122,6 @@ def test_build_package_sends_message_to_build_function_queue(dynamodb_table):
 
     assert mce_dev['PackageName'] == 'mce-dev'
     assert mce_dev['Repo'] == 'couldinho-test'
-    assert mce_dev['Branch'] == 'master'
-    assert mce_dev['Stage'] == 'prod'
 
 
 @mock_sqs
@@ -137,6 +137,7 @@ def test_two_packages_get_sent_to_build(dynamodb_table):
     os.environ["BUILD_FUNCTION_QUEUE"] = build_function_queue.url
     os.environ["PACKAGE_TABLE"] = "package-table"
     os.environ["PERSONAL_REPO"] = 'couldinho-test'
+    os.environ["DEV_REPO"] = 'couldinho-test-dev'
 
     from fanout_starter.starter import lambda_handler
 
@@ -163,6 +164,7 @@ def test_no_build_packages_builds_metapackage(dynamodb_table):
     os.environ["BUILD_FUNCTION_QUEUE"] = build_function_queue.url
     os.environ["PACKAGE_TABLE"] = "package-table"
     os.environ["PERSONAL_REPO"] = 'couldinho-test'
+    os.environ["DEV_REPO"] = 'couldinho-test-dev'
 
     from fanout_starter.starter import lambda_handler
 
@@ -178,13 +180,12 @@ def test_no_build_packages_builds_metapackage(dynamodb_table):
     assert metapkg['PackageName'] == 'GIT_REPO'
     assert metapkg['BuildStatus'] == 'Initialized'
     assert metapkg['IsMeta']
+    assert metapkg['repo'] == 'couldinho-test'
     assert metapkg['GitUrl'] == 'https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD'
-    assert metapkg['Branch'] == 'master'
-    assert metapkg['Stage'] == 'prod'
 
 
 @mock_sqs
-def test_branch_and_stage_are_dev(dynamodb_table):
+def test_dev_branch_uses_dev_repo(dynamodb_table):
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
     fanout_queue = sqs.create_queue(QueueName="FanoutQueue")
@@ -194,6 +195,7 @@ def test_branch_and_stage_are_dev(dynamodb_table):
     os.environ["BUILD_FUNCTION_QUEUE"] = build_function_queue.url
     os.environ["PACKAGE_TABLE"] = "package-table"
     os.environ["PERSONAL_REPO"] = 'couldinho-test'
+    os.environ["DEV_REPO"] = 'couldinho-test-dev'
 
     from fanout_starter.starter import lambda_handler
 
@@ -213,10 +215,8 @@ def test_branch_and_stage_are_dev(dynamodb_table):
     metapkg = [pkg for pkg in packages if pkg['PackageName'] == 'GIT_REPO'][0]
 
     assert mce_dev['BuildStatus'] == 'Building'
-    assert mce_dev['Branch'] == 'dev'
-    assert mce_dev['Stage'] == 'dev'
+    assert mce_dev['repo'] == 'couldinho-test-dev'
 
     assert metapkg['BuildStatus'] == 'Initialized'
     assert metapkg['GitUrl'] == 'https://raw.githubusercontent.com/test_user/dev/pkg/PKGBUILD'
-    assert metapkg['Branch'] == 'dev'
-    assert metapkg['Stage'] == 'dev'
+    assert metapkg['repo'] == 'couldinho-test-dev'
