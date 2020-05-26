@@ -1,8 +1,8 @@
 import json
 import os
-import requests
 import sys
 from urllib.parse import unquote
+from urllib.request import urlopen
 
 import github_token_validator
 from aws import send_to_queue
@@ -36,7 +36,8 @@ def lambda_handler(event, context):
     # Pull latest PKGBUILD
     print(f"Found PKGBUILD at {pkgbuild_location}")
     pkgbuild_url = f"https://raw.githubusercontent.com/{full_name}/{branch}/{pkgbuild_location}"
-    pkgbuild = requests.get(pkgbuild_url).text
+    resp = urlopen(pkgbuild_url)
+    pkgbuild = resp.read().decode()
     github_repository = f"https://github.com/{full_name}.git"
     payload = json.dumps({
         "payload": pkgbuild,
