@@ -1,3 +1,4 @@
+import json
 import os
 
 from aws import start_ecs_task
@@ -8,6 +9,6 @@ TASK_DEFN = os.environ.get('TASK_DEFN')
 
 
 def lambda_handler(event, context):
-    print(event)
+    print(json.dumps(event))
     start_ecs_task(ECS_CLUSTER, TASK_DEFN)
     return return_code(200, {'status': 'Repository updating'})

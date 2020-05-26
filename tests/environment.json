@@ -1,0 +1,6 @@
+{
+    "PkgbuildRetrieverFunction": {
+        "GITHUB_WEBHOOK_SECRET": "ABCD1234ABCD1234",
+        "NEXT_QUEUE": "https://eu-west-1.queue.amazonaws.com/123456789012/PkgbuildParserQueue"
+    }
+}

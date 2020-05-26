@@ -22,6 +22,9 @@ Parameters:
   PersonalRepoBucket:
     Type: String
     Description: The name of the bucket of the personal repository
+  DevRepoBucket:
+    Type: String
+    Description: The name of the bucket used to store packages when testing
   RepoName:
     Type: String
     Description: The name of the personal repository - usually the name of the DB file without the extension
@@ -99,6 +102,10 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(6 hours)
+        PackageUpdateQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt PackageUpdateQueue.Arn
       Layers:
         - !Ref AwsLayer
 
@@ -132,11 +139,11 @@ Resources:
       Handler: retrieve_pkgbuild.lambda_handler
       Timeout: 20
       Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref PkgbuildParserFunction
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt PkgbuildParserQueue.QueueName
       Environment:
         Variables:
-          NEXT_FUNC: !GetAtt PkgbuildParserFunction.Arn
+          NEXT_QUEUE: !Ref PkgbuildParserQueue
           GITHUB_WEBHOOK_SECRET: !Ref GithubWebhookSecret
           STAGE_NAME: !Ref StageName
       Events:
@@ -158,11 +165,16 @@ Resources:
       Handler: parse_pkgbuild.lambda_handler
       Timeout: 10
       Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref FanoutStarterFunction
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt FanoutStarterQueue.QueueName
       Environment:
         Variables:
-          NEXT_FUNC: !GetAtt FanoutStarterFunction.Arn
+          NEXT_QUEUE: !Ref FanoutStarterQueue
+      Events:
+        PkgbuildParserQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt PkgbuildParserQueue.Arn
       Layers:
         - !Ref AwsLayer
 
@@ -181,14 +193,20 @@ Resources:
             TableName: !Ref PackageTable
         - SQSSendMessagePolicy:
             QueueName: !GetAtt FanoutQueue.QueueName
-        - LambdaInvokePolicy:
-            FunctionName: !Ref BuildFunction
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt BuildFunctionQueue.QueueName
       Environment:
         Variables:
           FANOUT_QUEUE: !Ref FanoutQueue
+          BUILD_FUNCTION_QUEUE: !Ref BuildFunctionQueue
           PACKAGE_TABLE: !Ref PackageTable
           PERSONAL_REPO: !Ref PersonalRepoBucket
-          BUILD_FUNC: !GetAtt BuildFunction.Arn
+          DEV_REPO: !Ref DevRepoBucket
+      Events:
+        FanoutStarterQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt FanoutStarterQueue.Arn
       Layers:
         - !Ref AwsLayer
 
@@ -211,6 +229,11 @@ Resources:
           TASK_DEFN: !Ref PkgbuildTaskDefinition
           TASK_FAMILY: !Sub "aur-pkgbuild-task-${StageName}"
           MAX_TASK_COUNT: !Ref MaxTaskCount
+      Events:
+        BuildFunctionQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt BuildFunctionQueue.Arn
       Layers:
         - !Ref AwsLayer
 
@@ -225,15 +248,15 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
-        - LambdaInvokePolicy:
-            FunctionName: !Ref MetapackageBuilderFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref PackageUpdateFunction
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt MetapackageQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt PackageUpdateQueue.QueueName
       Environment:
         Variables:
           FANOUT_STATUS: !Ref FanoutStatusTable
-          METAPACKAGE_BUILDER: !GetAtt MetapackageBuilderFunction.Arn
-          PACKAGE_UPDATER: !GetAtt PackageUpdateFunction.Arn
+          METAPACKAGE_QUEUE: !Ref MetapackageQueue
+          PACKAGE_UPDATE_QUEUE: !Ref PackageUpdateQueue
       Layers:
         - !Ref AwsLayer
       Events:
@@ -253,13 +276,17 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref FanoutStatusTable
-        - LambdaInvokePolicy:
-            FunctionName: !Ref BuildFunction
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt BuildFunctionQueue.QueueName
       Environment:
         Variables:
-          BUILD_FUNC: !GetAtt BuildFunction.Arn
-          PERSONAL_REPO: !Ref PersonalRepoBucket
+          BUILD_FUNCTION_QUEUE: !Ref BuildFunctionQueue
           FANOUT_STATUS: !Ref FanoutStatusTable
+      Events:
+        MetapackageQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MetapackageQueue.Arn
       Layers:
         - !Ref AwsLayer
 
@@ -321,6 +348,13 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource:
+                  - !GetAtt BuildFunctionQueue.Arn
+              - Effect: Allow
+                Action:
                   - sqs:SendMessageBatch
                   - sqs:SendMessage
                   - ecs:RunTask
@@ -379,6 +413,7 @@ Resources:
                   - s3:PutObjectAcl
                 Resource:
                   - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepoBucket, '/*' ] ]
+                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref DevRepoBucket, '/*' ] ]
                   - !GetAtt BuildQueue.Arn
               - Effect: Allow
                 Action:
@@ -421,10 +456,42 @@ Resources:
   #####
   # Queue's
   ###
+
+  PackageUpdateQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "package-update-queue-${StageName}"
+      VisibilityTimeout: 600
+
+  PkgbuildParserQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "pkgbuild-parser-queue-${StageName}"
+      VisibilityTimeout: 10
+
+  FanoutStarterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "fanout-starter-queue-${StageName}"
+      VisibilityTimeout: 60
+
+  BuildFunctionQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "build-function-queue-${StageName}"
+      VisibilityTimeout: 60
+
   FanoutQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "fanout-queue-${StageName}"
+      VisibilityTimeout: 30
+
+  MetapackageQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "metapackage-queue-${StageName}"
+      VisibilityTimeout: 20
 
   BuildQueue:
     Type: AWS::SQS::Queue
@@ -467,8 +534,6 @@ Resources:
               Value: !Ref PushoverUser
             - Name: "REPO_NAME"
               Value: !Ref RepoName
-            - Name: "REPO_BUCKET"
-              Value: !Ref PersonalRepoBucket
             - Name: "REPO_ARCH"
               Value: !Ref RepoArch
             - Name: "SQS_QUEUE_URL"

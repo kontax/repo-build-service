@@ -12,11 +12,11 @@ MAX_TASK_COUNT = int(os.environ.get('MAX_TASK_COUNT'))
 
 
 def lambda_handler(event, context):
-    print(event)
-    package_dict = event
+    print(json.dumps(event))
 
     # Send the package to the build queue for any ECS instances to consume
-    send_to_queue(BUILD_QUEUE, json.dumps(package_dict))
+    for package_dict in event['Records']:
+        send_to_queue(BUILD_QUEUE, package_dict['body'])
 
     # Start a new task if it's less than the max required
     if get_running_task_count(ECS_CLUSTER, TASK_FAMILY) < MAX_TASK_COUNT:
