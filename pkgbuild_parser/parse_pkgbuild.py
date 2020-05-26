@@ -11,7 +11,7 @@ ALLOWED_CHARS = set(string.ascii_lowercase + string.digits + '@._+-')
 
 
 def lambda_handler(event, context):
-    print(event)
+    print(json.dumps(event))
     for record in event['Records']:
         run(record['body'])
     return return_code(200, {'status': "PKGBUILD added to queue"})

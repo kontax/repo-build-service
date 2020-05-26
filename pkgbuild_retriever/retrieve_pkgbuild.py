@@ -12,6 +12,8 @@ NEXT_QUEUE = os.environ.get("NEXT_QUEUE")
 
 def lambda_handler(event, context):
 
+    print(json.dumps(event))
+
     # Validate github token
     response = github_token_validator.validate(event)
     if response['statusCode'] != 200:

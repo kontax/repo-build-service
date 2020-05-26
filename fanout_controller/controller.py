@@ -13,7 +13,7 @@ PACKAGE_UPDATE_QUEUE = os.environ.get('PACKAGE_UPDATE_QUEUE')
 
 
 def lambda_handler(event, context):
-    print(event)
+    print(json.dumps(event))
 
     # Set default return message
     return_message = return_code(200, {"status": "No package found"})

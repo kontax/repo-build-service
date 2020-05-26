@@ -10,7 +10,7 @@ FANOUT_STATUS = os.environ.get('FANOUT_STATUS')
 
 
 def lambda_handler(event, context):
-    print(event)
+    print(json.dumps(event))
 
     for record in event['Records']:
         msg = json.loads(record['body'])

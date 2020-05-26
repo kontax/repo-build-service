@@ -12,7 +12,7 @@ MAX_TASK_COUNT = int(os.environ.get('MAX_TASK_COUNT'))
 
 
 def lambda_handler(event, context):
-    print(event)
+    print(json.dumps(event))
     package_dict = event
 
     # Send the package to the build queue for any ECS instances to consume

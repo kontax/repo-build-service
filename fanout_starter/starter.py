@@ -13,7 +13,7 @@ DEV_REPO = os.environ.get('DEV_REPO')
 
 
 def lambda_handler(event, context):
-    print(event)
+    print(json.dumps(event))
 
     # The dynamoDB table containing the running status of each package
     dynamo = get_dynamo_resource()
@@ -31,6 +31,12 @@ def lambda_handler(event, context):
         # Put each one in the FANOUT_STATUS table with an "Initialized"
         # status and add it to the queue
         build_packages = get_packages_to_build(package_table, deps)
+
+        if len(build_packages) > 0:
+            print(f"Building the following packages: {build_packages}")
+        else:
+            print("No new packages to build")
+
         process_packages(build_packages, git_url, git_branch, stage)
 
     return return_code(200, {'packages': build_packages})
