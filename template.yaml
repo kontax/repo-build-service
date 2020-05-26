@@ -140,7 +140,7 @@ Resources:
       Timeout: 20
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !Ref PkgbuildParserQueue
+            QueueName: !GetAtt PkgbuildParserQueue.QueueName
       Environment:
         Variables:
           NEXT_QUEUE: !Ref PkgbuildParserQueue
@@ -166,7 +166,7 @@ Resources:
       Timeout: 10
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !Ref FanoutStarterQueue
+            QueueName: !GetAtt FanoutStarterQueue.QueueName
       Environment:
         Variables:
           NEXT_QUEUE: !Ref FanoutStarterQueue
@@ -192,9 +192,9 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref PackageTable
         - SQSSendMessagePolicy:
-            QueueName: !Ref FanoutQueue
+            QueueName: !GetAtt FanoutQueue.QueueName
         - SQSSendMessagePolicy:
-            QueueName: !Ref BuildFunctionQueue
+            QueueName: !GetAtt BuildFunctionQueue.QueueName
       Environment:
         Variables:
           FANOUT_QUEUE: !Ref FanoutQueue
@@ -221,7 +221,7 @@ Resources:
       Role: !GetAtt ExtractRole.Arn
       Policies:
         - SQSSendMessagePolicy:
-            QueueName: !Ref BuildQueue
+            QueueName: !GetAtt BuildQueue.QueueName
       Environment:
         Variables:
           BUILD_QUEUE: !Ref BuildQueue
@@ -249,9 +249,9 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
         - SQSSendMessagePolicy:
-            QueueName: !Ref MetapackageQueue
+            QueueName: !GetAtt MetapackageQueue.QueueName
         - SQSSendMessagePolicy:
-            QueueName: !Ref PackageUpdateQueue
+            QueueName: !GetAtt PackageUpdateQueue.QueueName
       Environment:
         Variables:
           FANOUT_STATUS: !Ref FanoutStatusTable
@@ -277,7 +277,7 @@ Resources:
         - DynamoDBReadPolicy:
             TableName: !Ref FanoutStatusTable
         - SQSSendMessagePolicy:
-            QueueName: !Ref BuildFunctionQueue
+            QueueName: !GetAtt BuildFunctionQueue.QueueName
       Environment:
         Variables:
           BUILD_FUNCTION_QUEUE: !Ref BuildFunctionQueue
