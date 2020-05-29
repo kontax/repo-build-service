@@ -22,12 +22,12 @@ Parameters:
   PersonalRepoBucket:
     Type: String
     Description: The name of the bucket of the personal repository
-  ProdRepoName:
+  DevRepoBucket:
+    Type: String
+    Description: The name of the bucket used to store packages when testing
+  RepoName:
     Type: String
     Description: The name of the personal repository - usually the name of the DB file without the extension
-  DevRepoName:
-    Type: String
-    Description: The name of the dev database for the personal repository
   RepoArch:
     Type: String
     Description: The architecture to build the packages for
@@ -74,7 +74,6 @@ Globals:
   Function:
     Timeout: 3
     Runtime: python3.8
-    ReservedConcurrentExecutions: 1
 
 Resources:
 
@@ -201,8 +200,8 @@ Resources:
           FANOUT_QUEUE: !Ref FanoutQueue
           BUILD_FUNCTION_QUEUE: !Ref BuildFunctionQueue
           PACKAGE_TABLE: !Ref PackageTable
-          PERSONAL_REPO: !Ref ProdRepoName
-          DEV_REPO: !Ref DevRepoName
+          PERSONAL_REPO: !Ref PersonalRepoBucket
+          DEV_REPO: !Ref DevRepoBucket
       Events:
         FanoutStarterQueue:
           Type: SQS
@@ -414,6 +413,7 @@ Resources:
                   - s3:PutObjectAcl
                 Resource:
                   - !Join [ '' , [ 'arn:aws:s3:::', !Ref PersonalRepoBucket, '/*' ] ]
+                  - !Join [ '' , [ 'arn:aws:s3:::', !Ref DevRepoBucket, '/*' ] ]
                   - !GetAtt BuildQueue.Arn
               - Effect: Allow
                 Action:
@@ -532,8 +532,8 @@ Resources:
               Value: !Ref PushoverToken
             - Name: "PUSHOVER_USER"
               Value: !Ref PushoverUser
-            - Name: "REPO_BUCKET"
-              Value: !Ref PersonalRepoBucket
+            - Name: "REPO_NAME"
+              Value: !Ref RepoName
             - Name: "REPO_ARCH"
               Value: !Ref RepoArch
             - Name: "SQS_QUEUE_URL"
@@ -573,7 +573,7 @@ Resources:
             - Name: "PUSHOVER_USER"
               Value: !Ref PushoverUser
             - Name: "REPO_NAME"
-              Value: !Ref ProdRepoName
+              Value: !Ref RepoName
             - Name: "REMOTE_PATH"
               Value: !Join [ "", [ "s3://", !Ref PersonalRepoBucket, "/", !Ref RepoArch ] ]
             - Name: "AWS_REGION"
