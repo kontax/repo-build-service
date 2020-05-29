@@ -6,7 +6,7 @@ import sys
 
 from datetime import datetime
 from io import BytesIO
-from mock import patch, MagicMock
+from mock import patch
 from moto import mock_dynamodb2
 
 # Get the root path of the project to allow importing

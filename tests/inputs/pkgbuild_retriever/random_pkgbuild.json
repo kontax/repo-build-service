@@ -1,0 +1,38 @@
+pkgbase='couldinho'
+pkgname=(couldinho-base couldinho-desktop couldinho-laptop)
+
+package_couldinho-base() {
+    install=couldinho-base.install
+
+    install -Dm 0644 base/etc/profile.d/couldinho-base.sh '$pkgdir/etc/profile.d/couldinho-base.sh'
+
+    depends=(
+        bash
+        linux
+        vim
+    )
+
+    depends+=(
+        zsh
+    )
+
+    install -Dm 0644 base/etc/zsh/zshrc '$pkgdir/etc/zsh/couldinho-zshrc'
+}
+
+package_couldinho-desktop() {
+    install=couldinho-desktop.install
+
+    install -Dm 0644 desktop/etc/profile.d/couldinho-desktop.sh '$pkgdir/etc/profile.d/couldinho-desktop.sh'
+
+    depends=(
+        couldinho-base
+    )
+
+    depends+=(
+        xorg-server             
+        mce-dev             
+    )
+
+    install -Dm 0644 desktop/etc/X11/xorg.conf.d/00-keyboard.conf \
+                    '$pkgdir/etc/X11/xorg.conf.d/00-keyboard.conf'
+}

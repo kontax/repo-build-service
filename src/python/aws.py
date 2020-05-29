@@ -20,6 +20,8 @@ def send_to_queue_name(queue_name, message):
 
 def send_to_queue(queue_url, message):
     # Create SQS client
+    print(f"Sending the following message to SQS {queue_url}:")
+    print(message)
     if os.getenv("AWS_SAM_LOCAL"):
         sqs = boto3.client('sqs', endpoint_url='http://localhost:4566')
     else:

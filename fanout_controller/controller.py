@@ -46,6 +46,7 @@ def clear_table():
     fanout_table = dynamo.Table(FANOUT_STATUS)
     resp = fanout_table.scan()
     to_delete = [x['PackageName'] for x in resp['Items']]
+    print(f"Deleting the following items: {to_delete}")
     with fanout_table.batch_writer() as batch:
         for package in to_delete:
             batch.delete_item(Key={'PackageName': package})
@@ -145,6 +146,7 @@ def delete_failed(fanout_table):
     all_items = fanout_table.scan()
     deleted_items = [item for item in all_items['Items']
                      if item['BuildStatus'] == Status.Failed.name]
+    print(f"Removing {len(deleted_items)} failed items from the fanout table")
     for item in deleted_items:
         print(f"Removing item {item['PackageName']}")
         fanout_table.delete_item(Key={"PackageName": item['PackageName']})
@@ -165,5 +167,6 @@ def build_metapackage(fanout_table):
         "repo": resp['Items'][0]['repo'],
     }
     send_to_queue(METAPACKAGE_QUEUE, json.dumps(msg))
+    print("Removing the metapackage from the fanout table")
     fanout_table.delete_item(Key={"PackageName": "GIT_REPO"})
 
