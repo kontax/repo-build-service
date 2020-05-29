@@ -60,13 +60,13 @@ class UrlOpenMockContext:
         self.url = args[0] if isinstance(args[0], str) \
                    else args[0].get_full_url()
 
-        match = re.search(
+        if match := re.search(
                     'https://raw.githubusercontent.com/(.+/.+)/(.+)/(.+/.*)',
                     self.url,
-                    re.IGNORECASE)
-        self.repo_name = match[1]
-        self.branch = match[2]
-        self.location = match[3]
+                    re.IGNORECASE):
+            self.repo_name = match.group(1)
+            self.branch = match.group(2)
+            self.location = match.group(3)
 
     def __enter__(self, *args, **kwargs):
         if self.branch in PKGBUILDS:
