@@ -591,9 +591,9 @@ Resources:
   # Database Tables
   ###
   PackageTable:
-    Type: AWS::Serverless::SimpleTable
+    Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "package-table-${StageName}"
+      TableName: !Sub "packages-${StageName}"
       AttributeDefinitions:
         - AttributeName: Repository
           AttributeType: S
@@ -604,6 +604,10 @@ Resources:
           KeyType: HASH
         - AttributeName: PackageName
           KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
 
   FanoutStatusTable:
     Type: AWS::DynamoDB::Table
