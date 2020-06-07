@@ -12,11 +12,15 @@ from moto import mock_dynamodb2
 # Get the root path of the project to allow importing
 ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 sys.path.append(ROOT_PATH)
+sys.path.append(os.path.join(ROOT_PATH, "tests"))
 sys.path.append(os.path.join(ROOT_PATH, "package_updater"))
 sys.path.append(os.path.join(ROOT_PATH, "src/python"))
 
+from test_common import dynamodb_table, pkgcomp
+
 MIRROR = "https://mirror.rackspace.com/archlinux/$repo/os/$arch"
 PERSONAL_REPO = 'https://test-repo.s3.amazonaws.com'
+PERSONAL_REPO_DEV = 'https://test-repo-dev.s3.amazonaws.com'
 PKG_URL = "https://www.archlinux.org/mirrors/status/json/"
 
 
@@ -66,6 +70,8 @@ class UrlOpenMockContext:
             return open('tests/inputs/package_updater/community.db', 'rb')
         elif self.url == PERSONAL_REPO:
             return open('tests/inputs/package_updater/test-repo.db', 'rb')
+        elif self.url == PERSONAL_REPO_DEV:
+            return open('tests/inputs/package_updater/test-repo-dev.db', 'rb')
         else:
             raise Exception(self.url)
 
@@ -73,55 +79,63 @@ class UrlOpenMockContext:
         pass
 
 
-@pytest.fixture()
-def dynamodb_table():
-
-    table_name = 'package-table'
-
-    # List of packages that already exist in the table
-    packages = ['bash', 'linux', 'vim', 'zsh', 'xorg-server',
-                'chromium', 'couldinho-base']
-
-    with mock_dynamodb2():
-        client = boto3.client('dynamodb')
-        client.create_table(
-            TableName=table_name,
-            AttributeDefinitions=[
-                {'AttributeName': 'PackageName', 'AttributeType': 'S'}
-            ],
-            KeySchema=[{"KeyType": "HASH", "AttributeName": "PackageName"}]
-        )
-
-        tbl = boto3.resource('dynamodb').Table(table_name)
-        for pkg in packages:
-            tbl.put_item(Item={'PackageName': pkg})
-
-        yield tbl
-
-
 @patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_packages_in_table_get_added_and_removed(dynamodb_table):
 
-    pre_packages = ['bash', 'linux', 'vim', 'zsh', 'xorg-server',
-                'chromium', 'couldinho-base']
-    post_packages = ['bash', 'linux', 'vim', 'zsh', 'xorg-server', 
-                'couldinho-base', 'parole', '010editor', 'couldinho-desktop',
-                'couldinho-laptop', 'couldinho-sec', 'gef-git', 'ghidra-bin',
-                'mce-dev', 'pass-git-helper', 'vivaldi']
+    pre_packages = [
+        {'Repository': 'core', 'PackageName': 'bash'},
+        {'Repository': 'core', 'PackageName': 'linux'},
+        {'Repository': 'core', 'PackageName': 'vim'},
+        {'Repository': 'extra', 'PackageName': 'zsh'},
+        {'Repository': 'extra', 'PackageName': 'xorg-server'},
+        {'Repository': 'community', 'PackageName': 'chromium'},
+        {'Repository': 'personal-prod', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-prod', 'PackageName': 'ida-free'},
+        {'Repository': 'personal-dev', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-dev', 'PackageName': 'rr'}
+    ]
+
+    post_packages = [
+        {'Repository': 'core', 'PackageName': 'bash'},
+        {'Repository': 'core', 'PackageName': 'linux'},
+        {'Repository': 'extra', 'PackageName': 'zsh'},
+        {'Repository': 'extra', 'PackageName': 'xorg-server'},
+        {'Repository': 'extra', 'PackageName': 'vim'},
+        {'Repository': 'community', 'PackageName': 'parole'},
+        {'Repository': 'personal-prod', 'PackageName': '010editor'},
+        {'Repository': 'personal-prod', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-prod', 'PackageName': 'couldinho-desktop'},
+        {'Repository': 'personal-prod', 'PackageName': 'couldinho-laptop'},
+        {'Repository': 'personal-prod', 'PackageName': 'couldinho-sec'},
+        {'Repository': 'personal-prod', 'PackageName': 'gef-git'},
+        {'Repository': 'personal-prod', 'PackageName': 'ghidra-bin'},
+        {'Repository': 'personal-prod', 'PackageName': 'mce-dev'},
+        {'Repository': 'personal-prod', 'PackageName': 'pass-git-helper'},
+        {'Repository': 'personal-prod', 'PackageName': 'vivaldi'},
+        {'Repository': 'personal-dev', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-dev', 'PackageName': 'couldinho-desktop'},
+        {'Repository': 'personal-dev', 'PackageName': 'couldinho-laptop'},
+        {'Repository': 'personal-dev', 'PackageName': 'couldinho-sec'},
+        {'Repository': 'personal-dev', 'PackageName': '010editor'},
+        {'Repository': 'personal-dev', 'PackageName': 'gef-git'},
+        {'Repository': 'personal-dev', 'PackageName': 'mce-dev'},
+        {'Repository': 'personal-dev', 'PackageName': 'pass-git-helper'},
+        {'Repository': 'personal-dev', 'PackageName': 'pwngdb'},
+        {'Repository': 'personal-dev', 'PackageName': 'vivaldi'},
+    ]
 
     os.environ['PACKAGE_TABLE'] = 'package-table'
     os.environ['COUNTRIES'] = 'IE,GB'
     os.environ['PERSONAL_REPO'] = PERSONAL_REPO
+    os.environ['PERSONAL_REPO_DEV'] = PERSONAL_REPO_DEV
 
     packages = dynamodb_table.scan()
-    assert set([p['PackageName'] for p in packages['Items']]) == \
-            set(pre_packages)
+    assert pkgcomp(packages['Items'], pre_packages)
 
     from package_updater.update_packages import lambda_handler
 
     lambda_handler(None, None)
 
     packages = dynamodb_table.scan()
-    assert set([p['PackageName'] for p in packages['Items']]) == \
-            set(post_packages)
+    assert pkgcomp(packages['Items'], post_packages)
 

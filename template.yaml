@@ -22,6 +22,9 @@ Parameters:
   PersonalRepoBucket:
     Type: String
     Description: The name of the bucket of the personal repository
+  PersonalRepositoryDev:
+    Type: String
+    Description: The URL of the location of the repository used when testing
   DevRepoBucket:
     Type: String
     Description: The name of the bucket used to store packages when testing
@@ -96,6 +99,7 @@ Resources:
         Variables:
           COUNTRIES: !Ref RepositoryCountries
           PERSONAL_REPO: !Ref PersonalRepository
+          PERSONAL_REPO_DEV: !Ref PersonalRepositoryDev
           PACKAGE_TABLE: !Ref PackageTable
       Events:
         PackageUpdateSchedule:
@@ -590,9 +594,16 @@ Resources:
     Type: AWS::Serverless::SimpleTable
     Properties:
       TableName: !Sub "package-table-${StageName}"
-      PrimaryKey:
-        Name: PackageName
-        Type: String
+      AttributeDefinitions:
+        - AttributeName: Repository
+          AttributeType: S
+        - AttributeName: PackageName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: Repository
+          KeyType: HASH
+        - AttributeName: PackageName
+          KeyType: RANGE
 
   FanoutStatusTable:
     Type: AWS::DynamoDB::Table

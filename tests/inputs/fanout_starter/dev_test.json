@@ -2,5 +2,5 @@
  "git_url": "https://raw.githubusercontent.com/test_user/dev/pkg/PKGBUILD",
  "git_branch": "dev",
  "stage": "dev",
- "dependencies": ["bash", "linux", "vim", "zsh", "couldinho-base", "xorg-server", "mce-dev"]
+ "dependencies": ["bash", "linux", "vim", "zsh", "couldinho-base", "xorg-server", "ida-free"]
 }
