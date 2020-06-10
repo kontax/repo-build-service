@@ -1,7 +1,10 @@
 import json
 import os
+import time
+
 from concurrent.futures import ThreadPoolExecutor
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 from arch_packages import get_packages
 from aws import get_dynamo_resource
@@ -13,6 +16,7 @@ COUNTRIES = os.environ.get('COUNTRIES')
 PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
 PERSONAL_REPO_DEV = os.environ.get('PERSONAL_REPO_DEV')
 REPOS = ["core", "extra", "community"]
+DYNAMODB_MAX_RETRIES = 12
 
 
 def lambda_handler(event, context):
@@ -98,8 +102,20 @@ def add_new_packages(mirrors, table):
     with table.batch_writer(overwrite_by_pkeys=primary_key) as batch:
         for i in new_packages:
             for p in i['packages']:
-                item = {'Repository': i['repo'], 'PackageName': p}
-                batch.put_item(Item=item)
+                retry_count = 0
+                while retry_count <= DYNAMODB_MAX_RETRIES:
+                    try:
+                        item = {'Repository': i['repo'], 'PackageName': p}
+                        batch.put_item(Item=item)
+                    except ClientError:
+                        retry_count += 1
+                        time.sleep(2 ** retry_count)
+                        continue
+                    else:
+                        retry_count = 0
+                        break
+                else:
+                    raise RuntimeError("Write operation failed - AWS errors")
 
     return new_packages
 
