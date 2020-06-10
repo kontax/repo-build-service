@@ -8,13 +8,15 @@ import pytest
 import sys
 
 from moto import mock_sqs, mock_sts, mock_dynamodb2
-from moto.dynamodb2 import dynamodb_backend2
 
 # Get the root path of the project to allow importing
 ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
 sys.path.append(ROOT_PATH)
+sys.path.append(os.path.join(ROOT_PATH, "tests"))
 sys.path.append(os.path.join(ROOT_PATH, "fanout_starter"))
 sys.path.append(os.path.join(ROOT_PATH, "src/python"))
+
+from test_common import dynamodb_table
 
 TEMPLATE = os.path.join(ROOT_PATH, 'tests/inputs/sqs-template.json')
 INPUTS = {
@@ -38,30 +40,6 @@ def get_input(input_name):
             record['body'] = data
 
     return output
-
-
-@pytest.fixture()
-def dynamodb_table():
-
-    # List of packages that already exist in the table
-    packages = ['bash', 'linux', 'vim', 'zsh', 'xorg-server',
-                'chromium', 'couldinho-base']
-
-    with mock_dynamodb2():
-        client = boto3.client('dynamodb')
-        client.create_table(
-            TableName="package-table",
-            AttributeDefinitions=[
-                {'AttributeName': 'PackageName', 'AttributeType': 'S'}
-            ],
-            KeySchema=[{"KeyType": "HASH", "AttributeName": "PackageName"}]
-        )
-
-        tbl = boto3.resource('dynamodb').Table('package-table')
-        for pkg in packages:
-            tbl.put_item(Item={'PackageName': pkg})
-
-        yield tbl
 
 
 @mock_sqs
@@ -208,15 +186,42 @@ def test_dev_branch_uses_dev_repo(dynamodb_table):
     for msg in messages:
         packages.append(json.loads(msg.body))
 
-    assert 'mce-dev' in [pkg['PackageName'] for pkg in packages]
+    assert 'ida-free' in [pkg['PackageName'] for pkg in packages]
     assert 'GIT_REPO' in [pkg['PackageName'] for pkg in packages]
 
-    mce_dev = [pkg for pkg in packages if pkg['PackageName'] == 'mce-dev'][0]
+    ida_free = [pkg for pkg in packages if pkg['PackageName'] == 'ida-free'][0]
     metapkg = [pkg for pkg in packages if pkg['PackageName'] == 'GIT_REPO'][0]
 
-    assert mce_dev['BuildStatus'] == 'Building'
-    assert mce_dev['repo'] == 'couldinho-test-dev'
+    assert ida_free['BuildStatus'] == 'Building'
+    assert ida_free['repo'] == 'couldinho-test-dev'
 
     assert metapkg['BuildStatus'] == 'Initialized'
     assert metapkg['GitUrl'] == 'https://raw.githubusercontent.com/test_user/dev/pkg/PKGBUILD'
     assert metapkg['repo'] == 'couldinho-test-dev'
+
+@mock_sqs
+def test_dev_branch_doesnt_use_prod_repo(dynamodb_table):
+
+    sqs = boto3.resource("sqs", region_name='eu-west-1')
+    fanout_queue = sqs.create_queue(QueueName="FanoutQueue")
+    build_function_queue = sqs.create_queue(QueueName="BuildFunctionQueue")
+
+    os.environ["FANOUT_QUEUE"] = fanout_queue.url
+    os.environ["BUILD_FUNCTION_QUEUE"] = build_function_queue.url
+    os.environ["PACKAGE_TABLE"] = "package-table"
+    os.environ["PERSONAL_REPO"] = 'couldinho-test'
+    os.environ["DEV_REPO"] = 'couldinho-test-dev'
+
+    from fanout_starter.starter import lambda_handler
+
+    message = get_input("dev_test")
+    lambda_handler(message, None)
+
+    messages = fanout_queue.receive_messages(MaxNumberOfMessages=10)
+    assert len(messages) == 2
+    packages = []
+    for msg in messages:
+        packages.append(json.loads(msg.body))
+
+    assert 'ida-free' in [pkg['PackageName'] for pkg in packages]
+    assert 'GIT_REPO' in [pkg['PackageName'] for pkg in packages]

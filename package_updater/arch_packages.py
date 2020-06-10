@@ -67,20 +67,21 @@ def _extract_pkg_name(tar, files):
     return filenames
 
 
-def get_packages(uri):
+def get_packages(repo):
     """Gets a collection of packages contained within the repository URL
     specified.
 
     Args:
-        uri (str): The full path of the package database location.
+        repo (dict): The mirror name and URI to download from, in the format:
+                     { 'repo': `repo_name`, 'mirror': `uri` }
 
     Returns:
-        list: A collection of package names within the repository
+        dict: The repo name with a collection of package names
     """
 
     # Pull the DB file from the URI
-    print(f"Pulling package database from {uri}")
-    with urllib.request.urlopen(uri) as h:
+    print(f"Pulling package database from {repo['mirror']}")
+    with urllib.request.urlopen(repo['mirror']) as h:
         stream = BytesIO(h.read())
 
     # Decompress and unpack the DB file
@@ -95,4 +96,4 @@ def get_packages(uri):
     # Extract the package names from their desc files
     filenames = _extract_pkg_name(tar, files)
 
-    return filenames
+    return {'repo': repo['repo'], 'packages': filenames}

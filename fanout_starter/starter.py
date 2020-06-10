@@ -1,6 +1,8 @@
 import json
 import os
 
+from boto3.dynamodb.conditions import Key
+
 from aws import get_dynamo_resource, send_to_queue
 from common import return_code
 from enums import Status
@@ -30,7 +32,7 @@ def lambda_handler(event, context):
 
         # Put each one in the FANOUT_STATUS table with an "Initialized"
         # status and add it to the queue
-        build_packages = get_packages_to_build(package_table, deps)
+        build_packages = get_packages_to_build(package_table, deps, stage)
 
         if len(build_packages) > 0:
             print(f"Building the following packages: {build_packages}")
@@ -42,7 +44,7 @@ def lambda_handler(event, context):
     return return_code(200, {'packages': build_packages})
 
 
-def get_packages_to_build(package_table, pkgbuild_packages):
+def get_packages_to_build(package_table, pkgbuild_packages, stage):
     """ Compare the packages contained within the PKGBUILD to those already
     available in various repositories, returning only those which need to be
     built.
@@ -52,14 +54,25 @@ def get_packages_to_build(package_table, pkgbuild_packages):
                                   available.
         pkgbuild_packages (list): The collection of packages to check against
                                   those available.
+        stage (str):              Whether the dev or prod repo is in use.
 
     Returns:
         (list): A list of packages to send to the build queue.
     """
 
     print("Getting all current and new items in the table")
-    resp = package_table.scan()
-    all_packages = [x['PackageName'] for x in resp['Items']]
+
+    # Get the list of repositories we're pulling from
+    repos = ["core", "extra", "community"]
+    repos.append(f"personal-{stage}")
+
+    # Pull the list of packages within those repos
+    all_packages = []
+    for repo_name in repos:
+        resp = package_table.query(KeyConditionExpression=Key('Repository').eq(repo_name))
+        all_packages.extend([x['PackageName'] for x in resp['Items']])
+
+    # Retrieve those packages that aren't available yet
     to_build = list(set(pkgbuild_packages).difference(all_packages))
     return to_build
 
