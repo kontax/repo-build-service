@@ -23,7 +23,7 @@ def _get_all_repo_mirrors(best_mirror, repos):
                      .replace('Server = ', '') \
                      .replace('$arch', 'x86_64') \
                      .replace('$repo', repo) + f'/{repo}.db'
-        mirrors.append(mirror)
+        mirrors.append({'repo': repo, 'mirror': mirror})
 
     return mirrors
 

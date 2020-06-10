@@ -4,7 +4,9 @@ import json
 import hashlib
 import hmac
 import os
+from mock import patch
 import pytest
+import re
 import sys
 
 from moto import mock_sqs, mock_sts
@@ -21,6 +23,11 @@ INPUTS = {
     'no_commits': 'tests/inputs/pkgbuild_retriever/no_commits.json',
     'master_commit': 'tests/inputs/pkgbuild_retriever/master_commit.json',
     'random_branch': 'tests/inputs/pkgbuild_retriever/random_branch.json',
+}
+PKGBUILDS = {
+    'master': 'tests/inputs/pkgbuild_retriever/master_pkgbuild.json',
+    'dev': 'tests/inputs/pkgbuild_retriever/dev_pkgbuild.json',
+    'random': 'tests/inputs/pkgbuild_retriever/random_pkgbuild.json',
 }
 
 
@@ -46,7 +53,33 @@ def get_input(input_name, token):
 
     return output
 
+class UrlOpenMockContext:
+    """ Mock context for urlopen """
+
+    def __init__(self, *args, **kwargs):
+        self.url = args[0] if isinstance(args[0], str) \
+                   else args[0].get_full_url()
+
+        if match := re.search(
+                    'https://raw.githubusercontent.com/(.+/.+)/(.+)/(.+/.*)',
+                    self.url,
+                    re.IGNORECASE):
+            self.repo_name = match.group(1)
+            self.branch = match.group(2)
+            self.location = match.group(3)
+
+    def __enter__(self, *args, **kwargs):
+        if self.branch in PKGBUILDS:
+            return open(PKGBUILDS[self.branch], 'rb')
+        else:
+            raise Exception(self.url)
+
+    def __exit__(self, *args, **kwargs):
+        pass
+
+
 @mock_sqs
+@patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_git_url_is_correct():
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
@@ -70,6 +103,7 @@ def test_git_url_is_correct():
     assert url == 'https://github.com/kontax/arch-packages.git'
 
 
+@patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_validation_fails_on_incorrect_token():
 
     os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
@@ -83,6 +117,7 @@ def test_validation_fails_on_incorrect_token():
 
 
 @mock_sqs
+@patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_git_branch_is_master():
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
@@ -109,6 +144,7 @@ def test_git_branch_is_master():
     assert stage == 'prod'
 
 @mock_sqs
+@patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_git_branch_is_dev():
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
@@ -136,6 +172,7 @@ def test_git_branch_is_dev():
 
 
 @mock_sqs
+@patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_git_branch_is_random():
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
@@ -162,6 +199,7 @@ def test_git_branch_is_random():
     assert stage == 'dev'
 
 @mock_sqs
+@patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_payload_gets_correctly_received():
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
@@ -187,6 +225,7 @@ def test_payload_gets_correctly_received():
 
 
 @mock_sqs
+@patch('urllib.request.urlopen', UrlOpenMockContext)
 def test_no_commit_throws_401():
 
     sqs = boto3.resource("sqs", region_name='eu-west-1')
