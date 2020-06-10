@@ -90,7 +90,7 @@ Resources:
       Description: Scheduled updating of the package list in all repositories
       CodeUri: package_updater
       Handler: update_packages.lambda_handler
-      Timeout: 600
+      Timeout: 900
       MemorySize: 512
       Policies:
         - DynamoDBCrudPolicy:
@@ -465,7 +465,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "package-update-queue-${StageName}"
-      VisibilityTimeout: 600
+      VisibilityTimeout: 900
 
   PkgbuildParserQueue:
     Type: AWS::SQS::Queue
