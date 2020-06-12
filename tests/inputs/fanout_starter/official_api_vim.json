@@ -1,0 +1,85 @@
+{
+    "version": 2,
+    "limit": 250,
+    "valid": true,
+    "results": [
+        {
+            "pkgname": "vim",
+            "pkgbase": "vim",
+            "repo": "extra",
+            "arch": "x86_64",
+            "pkgver": "8.2.0814",
+            "pkgrel": "2",
+            "epoch": 0,
+            "pkgdesc": "Vi Improved, a highly configurable, improved version of the vi text editor",
+            "url": "https://www.vim.org",
+            "filename": "vim-8.2.0814-2-x86_64.pkg.tar.zst",
+            "compressed_size": 1733547,
+            "installed_size": 3776494,
+            "build_date": "2020-05-23T22:02:57Z",
+            "last_update": "2020-05-23T22:11:29.516Z",
+            "flag_date": null,
+            "maintainers": [
+                "anthraxx"
+            ],
+            "packager": "anthraxx",
+            "groups": [],
+            "licenses": [
+                "custom:vim"
+            ],
+            "conflicts": [
+                "gvim",
+                "vim-minimal",
+                "vim-python3"
+            ],
+            "provides": [
+                "vim-minimal",
+                "vim-plugin-runtime",
+                "vim-python3",
+                "xxd"
+            ],
+            "replaces": [
+                "vim-minimal",
+                "vim-python3"
+            ],
+            "depends": [
+                "acl",
+                "glibc",
+                "gpm",
+                "libffi",
+                "libgcrypt",
+                "pcre",
+                "vim-runtime=8.2.0814-2",
+                "zlib"
+            ],
+            "optdepends": [
+                "lua: Lua language support",
+                "perl: Perl language support",
+                "python: Python 3 language support",
+                "python2: Python 2 language support",
+                "ruby: Ruby language support",
+                "tcl: Tcl language support"
+            ],
+            "makedepends": [
+                "gawk",
+                "glibc",
+                "gpm",
+                "gtk3",
+                "libcanberra",
+                "libffi",
+                "libgcrypt",
+                "libxt",
+                "lua",
+                "pcre",
+                "python",
+                "python2",
+                "ruby",
+                "tcl",
+                "zlib"
+            ],
+            "checkdepends": []
+        }
+    ],
+    "num_pages": 1,
+    "page": 1
+}

@@ -1,0 +1,6 @@
+{
+    "PackageName": "mce-dev",
+    "FanoutStatus": "Complete",
+    "RepoName": "personal-prod",
+    "RepoUrl": "https://test-repo.s3.amazonaws.com"
+}

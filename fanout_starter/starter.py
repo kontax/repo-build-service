@@ -2,6 +2,9 @@ import json
 import os
 
 from boto3.dynamodb.conditions import Key
+from concurrent.futures import ThreadPoolExecutor
+from urllib.request import urlopen
+from urllib.parse import urlencode
 
 from aws import get_dynamo_resource, send_to_queue
 from common import return_code
@@ -12,6 +15,7 @@ PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
 BUILD_FUNCTION_QUEUE = os.environ.get('BUILD_FUNCTION_QUEUE')
 PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
 DEV_REPO = os.environ.get('DEV_REPO')
+OFFICIAL_PKG_API = "https://www.archlinux.org/packages/search/json/"
 
 
 def lambda_handler(event, context):
@@ -60,21 +64,47 @@ def get_packages_to_build(package_table, pkgbuild_packages, stage):
         (list): A list of packages to send to the build queue.
     """
 
+    print("Check packages against official repositories")
+    initial_to_build = []
+    with ThreadPoolExecutor() as executor:
+        pkgs = [x for x in \
+                executor.map(check_packages_against_official, pkgbuild_packages) \
+                if x is not None]
+        initial_to_build.extend(pkgs)
+
     print("Getting all current and new items in the table")
 
     # Get the list of repositories we're pulling from
-    repos = ["core", "extra", "community"]
-    repos.append(f"personal-{stage}")
+    repo_name = PERSONAL_REPO if stage == 'prod' else DEV_REPO
 
     # Pull the list of packages within those repos
-    all_packages = []
-    for repo_name in repos:
-        resp = package_table.query(KeyConditionExpression=Key('Repository').eq(repo_name))
-        all_packages.extend([x['PackageName'] for x in resp['Items']])
+    resp = package_table.query(KeyConditionExpression=Key('Repository').eq(repo_name))
+    aur_packages = [x['PackageName'] for x in resp['Items']]
 
     # Retrieve those packages that aren't available yet
-    to_build = list(set(pkgbuild_packages).difference(all_packages))
+    to_build = list(set(initial_to_build).difference(aur_packages))
     return to_build
+
+
+def check_packages_against_official(pkgbuild_package):
+    """ Check which packages are already contained within the official repos
+
+    Args:
+        pkgbuild_package (str): Name of package to check repository for
+
+    Returns:
+        list: List of packages not already contained in official repos
+    """
+
+    to_build = []
+    params = urlencode({'name': pkgbuild_package})
+    with urlopen(f"{OFFICIAL_PKG_API}?{params}") as resp:
+        data = json.loads(resp.read())
+        assert len(data['results']) <= 1
+        if len(data['results']) == 0:
+            return pkgbuild_package
+
+    return None
 
 
 def process_packages(build_packages, metapackage_url, branch, stage):
