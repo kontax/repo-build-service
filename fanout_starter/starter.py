@@ -2,6 +2,7 @@ import json
 import os
 
 from boto3.dynamodb.conditions import Key
+from concurrent.futures import ThreadPoolExecutor
 from urllib.request import urlopen
 from urllib.parse import urlencode
 
@@ -64,7 +65,12 @@ def get_packages_to_build(package_table, pkgbuild_packages, stage):
     """
 
     print("Check packages against official repositories")
-    initial_to_build = check_packages_against_official(pkgbuild_packages)
+    initial_to_build = []
+    with ThreadPoolExecutor() as executor:
+        pkgs = [x for x in \
+                executor.map(check_packages_against_official, pkgbuild_packages) \
+                if x is not None]
+        initial_to_build.extend(pkgs)
 
     print("Getting all current and new items in the table")
 
@@ -80,26 +86,25 @@ def get_packages_to_build(package_table, pkgbuild_packages, stage):
     return to_build
 
 
-def check_packages_against_official(pkgbuild_packages):
+def check_packages_against_official(pkgbuild_package):
     """ Check which packages are already contained within the official repos
 
     Args:
-        pkgbuild_packages (list): Collection of packages to check against.
+        pkgbuild_package (str): Name of package to check repository for
 
     Returns:
         list: List of packages not already contained in official repos
     """
 
     to_build = []
-    for pkg in pkgbuild_packages:
-        params = urlencode({'name': pkg})
-        with urlopen(f"{OFFICIAL_PKG_API}?{params}") as resp:
-            data = json.loads(resp.read())
-            assert len(data['results']) <= 1
-            if len(data['results']) == 0:
-                to_build.append(pkg)
+    params = urlencode({'name': pkgbuild_package})
+    with urlopen(f"{OFFICIAL_PKG_API}?{params}") as resp:
+        data = json.loads(resp.read())
+        assert len(data['results']) <= 1
+        if len(data['results']) == 0:
+            return pkgbuild_package
 
-    return to_build
+    return None
 
 
 def process_packages(build_packages, metapackage_url, branch, stage):
