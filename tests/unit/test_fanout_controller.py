@@ -23,7 +23,8 @@ INPUTS = {
     'failed_package': 'tests/inputs/fanout_controller/failed_package.json',
     'completed_package': 'tests/inputs/fanout_controller/completed_package.json',
     'metapackage': 'tests/inputs/fanout_controller/metapackage.json',
-    'complete': 'tests/inputs/fanout_controller/complete.json',
+    'complete-dev': 'tests/inputs/fanout_controller/complete-dev.json',
+    'complete-prod': 'tests/inputs/fanout_controller/complete-prod.json',
 }
 
 
@@ -96,6 +97,12 @@ def test_fanout_status_table_gets_updated_with_regular_package(dynamodb_table):
 @mock_sqs
 def test_package_update_queue_gets_notified_on_completion(dynamodb_table):
 
+    # Queue item to check
+    queue_output = {
+        "repository": "personal-prod",
+        "url": "https://test-repo.s3.amazonaws.com"
+    }
+
     sqs = boto3.resource("sqs", region_name='eu-west-1')
     metapackage_queue = sqs.create_queue(QueueName="MetapackageQueue")
     package_update_queue = sqs.create_queue(QueueName="PackageUpdateQueue")
@@ -106,12 +113,15 @@ def test_package_update_queue_gets_notified_on_completion(dynamodb_table):
 
     from fanout_controller.controller import lambda_handler
 
-    message = get_input("complete")
+    message = get_input("complete-prod")
     res = lambda_handler(message, None)
     assert res['statusCode'] == 200
 
     messages = package_update_queue.receive_messages(MaxNumberOfMessages=10)
     assert len(messages) == 1
+    msg = json.loads(messages[0].body)
+
+    assert msg == queue_output
 
 
 @mock_sqs
@@ -139,7 +149,7 @@ def test_status_table_gets_cleared_on_completion(dynamodb_table):
 
     from fanout_controller.controller import lambda_handler
 
-    message = get_input("complete")
+    message = get_input("complete-dev")
     res = lambda_handler(message, None)
     assert res['statusCode'] == 200
 

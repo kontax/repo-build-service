@@ -24,11 +24,16 @@ def lambda_handler(event, context):
         # If the metapackage has been built the message will simply contain
         # {'FanoutStatus': 'Complete'}, so we can clear the fanout status
         # table and update all packages in the package table.
-        if json.loads(message['body']).get("FanoutStatus") == "Complete":
+        msg_body = json.loads(message['body'])
+        if msg_body.get("FanoutStatus") == "Complete":
             print("Fanout status complete")
             clear_table()
             print("Updating package table")
-            send_to_queue(PACKAGE_UPDATE_QUEUE, json.dumps({}))
+            pkg_msg = {
+                'repository': msg_body['RepoName'],
+                'url': msg_body['RepoUrl']
+            }
+            send_to_queue(PACKAGE_UPDATE_QUEUE, json.dumps(pkg_msg))
             return return_code(200, {"status": "Fanout status complete"})
 
         # Handle the message and set the final status, including updating
@@ -122,7 +127,8 @@ def update_package_state(fanout_table, package_state):
         package_state (dict): Name and state of the package to update
     """
 
-    print(f"Updating state:\n{package_state}")
+    print(f"Updating state:")
+    print(json.dumps(package_state))
     fanout_table.update_item(
         Key={'PackageName': package_state['PackageName']},
         UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",

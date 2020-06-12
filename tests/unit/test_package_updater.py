@@ -18,38 +18,29 @@ sys.path.append(os.path.join(ROOT_PATH, "src/python"))
 
 from test_common import dynamodb_table, pkgcomp
 
-MIRROR = "https://mirror.rackspace.com/archlinux/$repo/os/$arch"
 PERSONAL_REPO = 'https://test-repo.s3.amazonaws.com'
 PERSONAL_REPO_DEV = 'https://test-repo-dev.s3.amazonaws.com'
-PKG_URL = "https://www.archlinux.org/mirrors/status/json/"
+
+TEMPLATE = os.path.join(ROOT_PATH, 'tests/inputs/sqs-template.json')
+INPUTS = {
+    'prod_test': 'tests/inputs/package_updater/prod_test.json',
+    'dev_test': 'tests/inputs/package_updater/dev_test.json',
+}
 
 
-def dummy_url():
-    msg = {
-        'cutoff': 86400,
-        'last_check': datetime.today().strftime('%Y-%m-%dT%H:%M:%SZ'),
-        'num_checks': 10,
-        'check_frequency': 100,
-        'urls': [{
-            'url': 'https://mirror.rackspace.com/archlinux/',
-            'protocol': 'https',
-            'last_sync': datetime.today().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'completion_pct': 1.0,
-            'delay': 2479,
-            'duration_avg': 0.2864674810153335,
-            'duration_stddev': 0.16080441224983974,
-            'score': 1.1358830043762842,
-            'active': True,
-            'country': '',
-            'country_code': 'IE',
-            'isos': True,
-            'ipv4': True,
-            'ipv6': False,
-            'details': 'https://www.archlinux.org/mirrors/rackspace.com/1316/'
-        }],
-        'version': 3
-    }
-    return json.dumps(msg).encode('utf-8')
+def get_input(input_name):
+    input_location = INPUTS[input_name]
+    filename = os.path.join(ROOT_PATH, input_location)
+
+    with open(TEMPLATE, 'r') as f:
+        output = json.loads(f.read())
+
+    with open(filename, 'r') as f:
+        data = f.read()
+        for record in output["Records"]:
+            record['body'] = data
+
+    return output
 
 
 class UrlOpenMockContext:
@@ -60,15 +51,7 @@ class UrlOpenMockContext:
                    else args[0].get_full_url()
 
     def __enter__(self, *args, **kwargs):
-        if self.url == PKG_URL:
-            return BytesIO(dummy_url())
-        elif 'core.db' in self.url:
-            return open('tests/inputs/package_updater/core.db', 'rb')
-        elif 'extra.db' in self.url:
-            return open('tests/inputs/package_updater/extra.db', 'rb')
-        elif 'community.db' in self.url:
-            return open('tests/inputs/package_updater/community.db', 'rb')
-        elif self.url == PERSONAL_REPO:
+        if self.url == PERSONAL_REPO:
             return open('tests/inputs/package_updater/test-repo.db', 'rb')
         elif self.url == PERSONAL_REPO_DEV:
             return open('tests/inputs/package_updater/test-repo-dev.db', 'rb')
@@ -80,15 +63,9 @@ class UrlOpenMockContext:
 
 
 @patch('urllib.request.urlopen', UrlOpenMockContext)
-def test_packages_in_table_get_added_and_removed(dynamodb_table):
+def test_packages_in_prod_repo_get_added_and_removed(dynamodb_table):
 
     pre_packages = [
-        {'Repository': 'core', 'PackageName': 'bash'},
-        {'Repository': 'core', 'PackageName': 'linux'},
-        {'Repository': 'core', 'PackageName': 'vim'},
-        {'Repository': 'extra', 'PackageName': 'zsh'},
-        {'Repository': 'extra', 'PackageName': 'xorg-server'},
-        {'Repository': 'community', 'PackageName': 'chromium'},
         {'Repository': 'personal-prod', 'PackageName': 'couldinho-base'},
         {'Repository': 'personal-prod', 'PackageName': 'ida-free'},
         {'Repository': 'personal-dev', 'PackageName': 'couldinho-base'},
@@ -96,12 +73,6 @@ def test_packages_in_table_get_added_and_removed(dynamodb_table):
     ]
 
     post_packages = [
-        {'Repository': 'core', 'PackageName': 'bash'},
-        {'Repository': 'core', 'PackageName': 'linux'},
-        {'Repository': 'extra', 'PackageName': 'zsh'},
-        {'Repository': 'extra', 'PackageName': 'xorg-server'},
-        {'Repository': 'extra', 'PackageName': 'vim'},
-        {'Repository': 'community', 'PackageName': 'parole'},
         {'Repository': 'personal-prod', 'PackageName': '010editor'},
         {'Repository': 'personal-prod', 'PackageName': 'couldinho-base'},
         {'Repository': 'personal-prod', 'PackageName': 'couldinho-desktop'},
@@ -112,6 +83,37 @@ def test_packages_in_table_get_added_and_removed(dynamodb_table):
         {'Repository': 'personal-prod', 'PackageName': 'mce-dev'},
         {'Repository': 'personal-prod', 'PackageName': 'pass-git-helper'},
         {'Repository': 'personal-prod', 'PackageName': 'vivaldi'},
+        {'Repository': 'personal-dev', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-dev', 'PackageName': 'rr'},
+    ]
+
+    os.environ['PACKAGE_TABLE'] = 'package-table'
+
+    packages = dynamodb_table.scan()
+    assert pkgcomp(packages['Items'], pre_packages)
+
+    from package_updater.update_packages import lambda_handler
+
+    message = get_input("prod_test")
+    lambda_handler(message, None)
+
+    packages = dynamodb_table.scan()
+    assert pkgcomp(packages['Items'], post_packages)
+
+
+@patch('urllib.request.urlopen', UrlOpenMockContext)
+def test_packages_in_dev_repo_get_added_and_removed(dynamodb_table):
+
+    pre_packages = [
+        {'Repository': 'personal-prod', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-prod', 'PackageName': 'ida-free'},
+        {'Repository': 'personal-dev', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-dev', 'PackageName': 'rr'}
+    ]
+
+    post_packages = [
+        {'Repository': 'personal-prod', 'PackageName': 'couldinho-base'},
+        {'Repository': 'personal-prod', 'PackageName': 'ida-free'},
         {'Repository': 'personal-dev', 'PackageName': 'couldinho-base'},
         {'Repository': 'personal-dev', 'PackageName': 'couldinho-desktop'},
         {'Repository': 'personal-dev', 'PackageName': 'couldinho-laptop'},
@@ -125,16 +127,14 @@ def test_packages_in_table_get_added_and_removed(dynamodb_table):
     ]
 
     os.environ['PACKAGE_TABLE'] = 'package-table'
-    os.environ['COUNTRIES'] = 'IE,GB'
-    os.environ['PERSONAL_REPO'] = PERSONAL_REPO
-    os.environ['PERSONAL_REPO_DEV'] = PERSONAL_REPO_DEV
 
     packages = dynamodb_table.scan()
     assert pkgcomp(packages['Items'], pre_packages)
 
     from package_updater.update_packages import lambda_handler
 
-    lambda_handler(None, None)
+    message = get_input("dev_test")
+    lambda_handler(message, None)
 
     packages = dynamodb_table.scan()
     assert pkgcomp(packages['Items'], post_packages)

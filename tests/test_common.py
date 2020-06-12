@@ -10,12 +10,6 @@ def dynamodb_table():
 
     # List of packages that already exist in the table
     packages = [
-        {'repo': 'core', 'package': 'bash'},
-        {'repo': 'core', 'package': 'linux'},
-        {'repo': 'core', 'package': 'vim'},
-        {'repo': 'extra', 'package': 'zsh'},
-        {'repo': 'extra', 'package': 'xorg-server'},
-        {'repo': 'community', 'package': 'chromium'},
         {'repo': 'personal-prod', 'package': 'couldinho-base'},
         {'repo': 'personal-prod', 'package': 'ida-free'},
         {'repo': 'personal-dev', 'package': 'couldinho-base'},

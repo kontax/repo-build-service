@@ -97,15 +97,8 @@ Resources:
             TableName: !Ref PackageTable
       Environment:
         Variables:
-          COUNTRIES: !Ref RepositoryCountries
-          PERSONAL_REPO: !Ref PersonalRepository
-          PERSONAL_REPO_DEV: !Ref PersonalRepositoryDev
           PACKAGE_TABLE: !Ref PackageTable
       Events:
-        PackageUpdateSchedule:
-          Type: Schedule
-          Properties:
-            Schedule: rate(6 hours)
         PackageUpdateQueue:
           Type: SQS
           Properties:
@@ -593,7 +586,7 @@ Resources:
   PackageTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Sub "packages-${StageName}"
+      TableName: !Sub "package-table-${StageName}"
       AttributeDefinitions:
         - AttributeName: Repository
           AttributeType: S
