@@ -38,7 +38,7 @@ def lambda_handler(event, context):
     # Pull latest PKGBUILD
     print(f"Found PKGBUILD at {pkgbuild_location}")
     pkgbuild_url = f"https://raw.githubusercontent.com/{full_name}/{branch}/{pkgbuild_location}"
-    
+
     with urlopen(pkgbuild_url) as resp:
         pkgbuild = resp.read().decode()
 

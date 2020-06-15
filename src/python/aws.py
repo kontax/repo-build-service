@@ -33,7 +33,7 @@ def send_to_queue(queue_url, message):
     print(f"Message sent: {response['MessageId']}")
 
 
-def start_ecs_task(cluster, task_definition):
+def start_ecs_task(cluster, task_definition, overrides):
     """Starts a new ECS task within a Fargate cluster to build the packages
 
     The ECS task pulls each package built one by one from the queue and adds
@@ -42,7 +42,9 @@ def start_ecs_task(cluster, task_definition):
     Args:
         cluster (str): The name of the cluster to start the task in
         task_definition (str); The name of the task definition to run
+        overrides (dict): Any ECS variable overrides to push to the container
     """
+
     print(f"Starting new ECS task to build the package(s)")
 
     # Note: There's no ECS in the free version of localstack
@@ -60,7 +62,8 @@ def start_ecs_task(cluster, task_definition):
                 ],
                 'assignPublicIp': 'ENABLED'
             }
-        }
+        },
+        overrides=overrides
     )
     print(f"Run task complete: {str(response)}")
 

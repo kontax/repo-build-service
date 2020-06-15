@@ -2,34 +2,53 @@ import json
 import os
 import time
 
-from concurrent.futures import ThreadPoolExecutor
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from arch_packages import get_packages
 from aws import get_dynamo_resource
-from best_mirror import get_best_mirror
 from common import return_code
 
 PACKAGE_TABLE = os.environ.get('PACKAGE_TABLE')
-COUNTRIES = os.environ.get('COUNTRIES')
-PERSONAL_REPO = os.environ.get('PERSONAL_REPO')
-PERSONAL_REPO_DEV = os.environ.get('PERSONAL_REPO_DEV')
-REPOS = ["core", "extra", "community"]
 DYNAMODB_MAX_RETRIES = 12
 
 
 def lambda_handler(event, context):
-    response_body = {
-        'current': {},
-        'new': {},
-        'deleted': {}
-    }
+    """ Function used to update packages within the packages table.
 
-    # Get the best mirror containing the packages
-    mirrors = get_best_mirror(COUNTRIES.split(','), REPOS)
-    mirrors.append({'repo': 'personal-prod', 'mirror': PERSONAL_REPO})
-    mirrors.append({'repo': 'personal-dev', 'mirror': PERSONAL_REPO_DEV})
+    The package table contains details on the packages within personal
+    repository. This table is updated each run so as to keep track of when
+    new packages need to be built, or they already exist. The official repo's
+    do not need to be included as they can be queried from the API.
+
+    An example of the event passed to this function is as follows:
+    {
+        'repository': 'personal-prod',
+        'url': 'https://s3-eu-west-1.amazonaws.com/personalrepo/x64_86/repo.db
+    }
+    This is wrapped in an SQS message.
+
+    Args:
+        event (dict): Contains packages to be updated from SNS
+        context (object): Lambda context runtime methods and attributes
+
+    Returns:
+        dict: HTTP response based on success of the function
+    """
+
+    print(json.dumps(event))
+    retval = {}
+    for record in event['Records']:
+        msg = json.loads(record['body'])
+        repo_name = msg['repository']
+        url = msg['url']
+        retval[repo_name] = update_repository(repo_name, url)
+
+    return return_code(200, retval)
+
+
+def update_repository(repo_name, url):
+    response_body = {}
 
     # The dynamoDB table containing the packages
     dynamo = get_dynamo_resource()
@@ -37,33 +56,27 @@ def lambda_handler(event, context):
 
     # Get any new packages that have been added to the repositories and upload them
     print("Getting all current items in the table")
-    for mirror in mirrors:
-        repo_name = mirror['repo']
-        response_body['current'][repo_name] = get_current_package_count(table, repo_name)
+    response_body['current'] = get_current_package_count(table, repo_name)
 
-    new_packages = add_new_packages(mirrors, table)
-    for repo in new_packages:
-        repo_name = repo['repo']
-        print(f"Adding new packages to {repo_name}")
-        new_pkg_count = len(repo['packages'])
-        new_diff = new_pkg_count - response_body['current'][repo_name]
-        new_diff = new_diff if new_diff > 0 else 0
-        print(f"Added {new_diff} items to {repo_name}")
-        response_body['new'][repo_name] = new_diff
+    new_packages = add_new_packages(repo_name, url, table)
+    print(f"Adding new packages to {repo_name}")
+    new_pkg_count = len(new_packages['packages'])
+    new_diff = new_pkg_count - response_body['current']
+    new_diff = new_diff if new_diff > 0 else 0
+    print(f"Added {new_diff} items to {repo_name}")
+    response_body['new'] = new_diff
 
     # Remove any packages no longer contained within the repositories
-    for repo in new_packages:
-        repo_name = repo['repo']
-        print(f"Removing packages from {repo_name}")
-        resp = table.query(KeyConditionExpression=Key('Repository').eq(repo_name))
-        all_packages = [x['PackageName'] for x in resp['Items']]
-        to_delete = delete_old_packages(repo_name, all_packages, repo['packages'], table)
-        print(f"Removed {len(to_delete)} items from {repo_name}")
-        response_body['deleted'][repo_name] = len(to_delete)
+    print(f"Removing packages from {repo_name}")
+    resp = table.query(KeyConditionExpression=Key('Repository').eq(repo_name))
+    all_packages = [x['PackageName'] for x in resp['Items']]
+    to_delete = delete_old_packages(repo_name, all_packages, new_packages['packages'], table)
+    print(f"Removed {len(to_delete)} items from {repo_name}")
+    response_body['deleted'] = len(to_delete)
 
     # Return the number of changes being made
     print(json.dumps(response_body))
-    return return_code(200, response_body)
+    return response_body
 
 
 def get_current_package_count(table, repo_name):
@@ -83,41 +96,39 @@ def get_current_package_count(table, repo_name):
     return num_packages
 
 
-def add_new_packages(mirrors, table):
+def add_new_packages(repo_name, url, table):
     """ Add new packages to the database
 
     Args:
-        mirrors (list): A list of mirrors to download the packages from
+        repo_name (str): Name of the reponew packages are being added for
+        url (str): Mirror of the repository to download the package DB from
         table (dynamodb.Table): The dynamodb table to update
 
     Returns:
-        list: A collection of all packages within the mirrors.
+        list: A collection of all packages within the mirror.
     """
 
-    new_packages = []
-    with ThreadPoolExecutor() as executor:
-        new_packages.extend([x for x in executor.map(get_packages, mirrors)])
+    new_pkgs = get_packages({'repo': repo_name, 'mirror': url})
 
     primary_key = ['Repository', 'PackageName']
     with table.batch_writer(overwrite_by_pkeys=primary_key) as batch:
-        for i in new_packages:
-            for p in i['packages']:
-                retry_count = 0
-                while retry_count <= DYNAMODB_MAX_RETRIES:
-                    try:
-                        item = {'Repository': i['repo'], 'PackageName': p}
-                        batch.put_item(Item=item)
-                    except ClientError:
-                        retry_count += 1
-                        time.sleep(2 ** retry_count)
-                        continue
-                    else:
-                        retry_count = 0
-                        break
+        for p in new_pkgs['packages']:
+            retry_count = 0
+            while retry_count <= DYNAMODB_MAX_RETRIES:
+                try:
+                    item = {'Repository': new_pkgs['repo'], 'PackageName': p}
+                    batch.put_item(Item=item)
+                except ClientError:
+                    retry_count += 1
+                    time.sleep(2 ** retry_count)
+                    continue
                 else:
-                    raise RuntimeError("Write operation failed - AWS errors")
+                    retry_count = 0
+                    break
+            else:
+                raise RuntimeError("Write operation failed - AWS errors")
 
-    return new_packages
+    return new_pkgs
 
 
 def delete_old_packages(repo_name, all_packages, new_packages, table):
