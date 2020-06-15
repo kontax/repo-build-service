@@ -119,6 +119,9 @@ Resources:
         Variables:
           ECS_CLUSTER: !Ref PkgbuildCluster
           TASK_DEFN: !Ref RepoUpdaterTaskDefinition
+          REPO_ARCH: !Ref RepoArch
+          PERSONAL_REPO_BUCKET: !Ref PersonalRepoBucket
+          DEV_REPO_BUCKET: !Ref DevRepoBucket
       Events:
         RepoUpdateSchedule:
           Type: Schedule
