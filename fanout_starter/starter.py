@@ -98,8 +98,12 @@ def check_packages_against_official(pkgbuild_package):
 
     to_build = []
     params = urlencode({'name': pkgbuild_package})
-    with urlopen(f"{OFFICIAL_PKG_API}?{params}") as resp:
+    url = f"{OFFICIAL_PKG_API}?{params}"
+    print(f"Checking official packages from {url}")
+    with urlopen(url) as resp:
         data = json.loads(resp.read())
+        print("Results from official packages:")
+        print(json.dumps(data))
         assert len(data['results']) <= 1
         if len(data['results']) == 0:
             return pkgbuild_package
