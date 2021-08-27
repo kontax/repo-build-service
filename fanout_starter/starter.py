@@ -96,15 +96,18 @@ def check_packages_against_official(pkgbuild_package):
         list: List of packages not already contained in official repos
     """
 
-    to_build = []
     params = urlencode({'name': pkgbuild_package})
     url = f"{OFFICIAL_PKG_API}?{params}"
     print(f"Checking official packages from {url}")
     with urlopen(url) as resp:
         data = json.loads(resp.read())
-        print("Results from official packages:")
-        print(json.dumps(data))
-        assert len(data['results']) <= 1
+        distinct_pkgs = len(set([x['pkgname'] for x in data['results']]))
+        try:
+            assert distinct_pkgs <= 1
+        except AssertionError:
+            print(f"URL {url} contained more than one package:")
+            print(json.dumps(data))
+            raise
         if len(data['results']) == 0:
             return pkgbuild_package
 
