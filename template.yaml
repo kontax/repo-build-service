@@ -71,7 +71,7 @@ Parameters:
     Type: Number
     Description: The maximum number of ECS tasks to run simultaneously
     MinValue: 0
-    Default: 4
+    Default: 1
 
 Globals:
   Function:
@@ -92,9 +92,14 @@ Resources:
       Handler: update_packages.lambda_handler
       Timeout: 900
       MemorySize: 512
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PackageTable
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           PACKAGE_TABLE: !Ref PackageTable
@@ -115,6 +120,12 @@ Resources:
       Handler: update_repo.lambda_handler
       Timeout: 60
       Role: !GetAtt ExtractRole.Arn
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           ECS_CLUSTER: !Ref PkgbuildCluster
@@ -138,9 +149,14 @@ Resources:
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
       Timeout: 20
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt PkgbuildParserQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           NEXT_QUEUE: !Ref PkgbuildParserQueue
@@ -164,9 +180,14 @@ Resources:
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
       Timeout: 10
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt FanoutStarterQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           NEXT_QUEUE: !Ref FanoutStarterQueue
@@ -185,7 +206,11 @@ Resources:
       Description: A starter function to set up the fan-out and fan-in of building packages
       CodeUri: fanout_starter
       Handler: starter.lambda_handler
-      Timeout: 60
+      Timeout: 600
+      ReservedConcurrentExecutions: 1
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
@@ -195,6 +220,8 @@ Resources:
             QueueName: !GetAtt FanoutQueue.QueueName
         - SQSSendMessagePolicy:
             QueueName: !GetAtt BuildFunctionQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           FANOUT_QUEUE: !Ref FanoutQueue
@@ -218,10 +245,15 @@ Resources:
       CodeUri: pkg_builder
       Handler: build_package.lambda_handler
       Timeout: 60
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
       Role: !GetAtt ExtractRole.Arn
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt BuildQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           BUILD_QUEUE: !Ref BuildQueue
@@ -245,6 +277,9 @@ Resources:
       CodeUri: fanout_controller
       Handler: controller.lambda_handler
       Timeout: 30
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
@@ -252,6 +287,8 @@ Resources:
             QueueName: !GetAtt MetapackageQueue.QueueName
         - SQSSendMessagePolicy:
             QueueName: !GetAtt PackageUpdateQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           FANOUT_STATUS: !Ref FanoutStatusTable
@@ -273,11 +310,16 @@ Resources:
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
       Timeout: 20
+      DeadLetterQueue:
+        TargetArn: !GetAtt ErrorQueue.Arn
+        Type: SQS
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref FanoutStatusTable
         - SQSSendMessagePolicy:
             QueueName: !GetAtt BuildFunctionQueue.QueueName
+        - SQSSendMessagePolicy:
+            QueueName: !GetAtt ErrorQueue.QueueName
       Environment:
         Variables:
           BUILD_FUNCTION_QUEUE: !Ref BuildFunctionQueue
@@ -289,6 +331,25 @@ Resources:
             Queue: !GetAtt MetapackageQueue.Arn
       Layers:
         - !Ref AwsLayer
+
+  ErrorHandlerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "error-handler-${StageName}"
+      Description: Catch and notify on errors in other functions
+      CodeUri: reporting
+      Handler: error_reporting.handler
+      Timeout: 30
+      Environment:
+        Variables:
+          PUSHOVER_TOKEN: !Ref PushoverToken
+          PUSHOVER_USER: !Ref PushoverUser
+      Events:
+        ErrorQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt ErrorQueue.Arn
+
 
   #####
   # API's
@@ -365,6 +426,7 @@ Resources:
                   - !Ref PkgbuildTaskDefinition
                   - !Ref RepoUpdaterTaskDefinition
                   - !GetAtt BuildTaskRole.Arn
+                  - !GetAtt ErrorQueue.Arn
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -498,6 +560,12 @@ Resources:
     Properties:
       QueueName: !Sub "aur-pkg-build-${StageName}"
       VisibilityTimeout: 600
+
+  ErrorQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "repo-build-error-queue-${StageName}"
+      VisibilityTimeout: 30
 
   #####
   # ECS
