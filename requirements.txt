@@ -16,7 +16,7 @@ chardet==4.0.0
 chevron==0.14.0
 click==7.1.2
 cookiecutter==1.7.3
-cryptography==2.9.2
+cryptography==3.3.2
 dateparser==1.0.0
 decorator==4.4.2
 dnslib==0.9.12
