@@ -1,9 +1,10 @@
 import lzma
 import gzip
-import urllib
+import urllib.request
 
 from io import BytesIO
 from tarfile import TarFile
+from zstandard import ZstdDecompressor
 
 
 def _extract_archive_from_stream(stream):
@@ -22,7 +23,16 @@ def _extract_archive_from_stream(stream):
         tar = TarFile(fileobj=gzip.open(stream), mode='r')
     except OSError:
         stream.seek(0)
-        tar = TarFile(fileobj=lzma.open(stream), mode='r')
+        try:
+            tar = TarFile(fileobj=lzma.open(stream), mode='r')
+        except lzma.LZMAError:
+            stream.seek(0)
+            d = ZstdDecompressor()
+            decompressed = BytesIO()
+            d.copy_stream(stream, decompressed)
+            decompressed.seek(0)
+            tar = TarFile(fileobj=decompressed, mode='r')
+
     return tar
 
 
