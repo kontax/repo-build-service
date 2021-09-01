@@ -73,7 +73,7 @@ PyYAML==5.4.1
 regex==2021.8.28
 requests==2.25.1
 responses==0.10.14
-rsa==4.0
+rsa==4.7
 s3transfer==0.5.0
 serverlessrepo==0.1.10
 six==1.16.0
