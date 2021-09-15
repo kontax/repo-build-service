@@ -62,6 +62,10 @@ Parameters:
     Type: String
     Description: The name of the private key within the Parameter Store used to sign built packages
     Default: "aur_key"
+  AurKeysParam:
+    Type: String
+    Description: The name of the parameter used to store public keys of signed packages
+    Default: "aur_key"
   AurKeyDecrypt:
     Type: String
     Description: The KMS key used to encrypt/decrypt the parameter store key above (key/{guid})
@@ -496,6 +500,11 @@ Resources:
                   Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AurKeyParam}
               - Effect: Allow
                 Action:
+                  - ssm:GetParameter
+                Resource:
+                  Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AurKeysParam}
+              - Effect: Allow
+                Action:
                   - kms:Decrypt
                 Resource:
                   Fn::Sub: arn:aws:kms:${AWS::Region}:${AWS::AccountId}:${AurKeyDecrypt}
@@ -648,6 +657,8 @@ Resources:
               Value: !Ref AWS::Region
             - Name: "AUR_KEY"
               Value: !Ref AurKeyParam
+            - Name: "AUR_KEYS"
+              Value: !Ref AurKeysParam
             - Name: "PACKAGER"
               Value: !Ref AurPackager
 
