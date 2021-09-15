@@ -621,6 +621,8 @@ Resources:
               Value: !Ref FanoutQueue
             - Name: "AUR_KEY"
               Value: !Ref AurKeyParam
+            - Name: "AUR_KEYS"
+              Value: !Ref AurKeysParam
             - Name: "PACKAGER"
               Value: !Ref AurPackager
 
