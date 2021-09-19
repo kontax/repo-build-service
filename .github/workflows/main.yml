@@ -27,9 +27,4 @@ jobs:
       - run: |
           sam deploy \
             --no-confirm-changeset \
-            --no-fail-on-empty-changeset \
-            --stack-name repo-build-service \
-            --s3-bucket aws-sam-cli-managed-default-samclisourcebucket-1mjhgvy31ucmj \
-            --s3-prefix repo-build-service
-            --capabilities CAPABILITY_NAMED_IAM \
-            --region eu-west-1
+            --no-fail-on-empty-changeset
