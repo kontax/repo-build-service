@@ -138,6 +138,7 @@ def process_packages(build_packages, metapackage_url, branch, stage):
         "BuildStatus": Status.Initialized.name,
         "IsMeta": True,
         "GitUrl": metapackage_url,
+        "GitBranch": branch,
         "repo": repo
     }
     send_to_queue(FANOUT_QUEUE, json.dumps(metapackage_msg))

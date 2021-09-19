@@ -212,8 +212,6 @@ Resources:
         TargetArn: !GetAtt ErrorQueue.Arn
         Type: SQS
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref FanoutStatusTable
         - DynamoDBReadPolicy:
             TableName: !Ref PackageTable
         - SQSSendMessagePolicy:
