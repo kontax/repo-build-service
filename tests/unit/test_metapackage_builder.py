@@ -7,8 +7,7 @@ import os
 import pytest
 import sys
 
-from moto import mock_sqs, mock_sts, mock_dynamodb2
-from moto.dynamodb2 import dynamodb_backend2
+from moto import mock_sqs, mock_sts, mock_dynamodb
 
 # Get the root path of the project to allow importing
 ROOT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
@@ -42,14 +41,18 @@ def dynamodb_table():
 
     package_name = 'fanout-status'
 
-    with mock_dynamodb2():
+    with mock_dynamodb():
         client = boto3.client('dynamodb')
         client.create_table(
             TableName=package_name,
             AttributeDefinitions=[
                 {'AttributeName': 'PackageName', 'AttributeType': 'S'}
             ],
-            KeySchema=[{"KeyType": "HASH", "AttributeName": "PackageName"}]
+            KeySchema=[{"KeyType": "HASH", "AttributeName": "PackageName"}],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
         )
 
         tbl = boto3.resource('dynamodb').Table(package_name)
