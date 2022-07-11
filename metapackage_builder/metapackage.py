@@ -15,12 +15,14 @@ def lambda_handler(event, context):
     for record in event['Records']:
         msg = json.loads(record['body'])
         pkgbuild_url = msg['git_url']
+        git_branch = msg['git_branch']
         built_packages = get_built_packages()
         repo = msg['repo']
         build_event = {
             "PackageName": "GIT_REPO",
             "Repo": repo,
             "git_url": pkgbuild_url,
+            "git_branch": git_branch,
             "built_packages": built_packages
         }
         send_to_queue(BUILD_FUNCTION_QUEUE, json.dumps(build_event))

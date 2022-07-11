@@ -131,12 +131,13 @@ def update_package_state(fanout_table, package_state):
     print(json.dumps(package_state))
     fanout_table.update_item(
         Key={'PackageName': package_state['PackageName']},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r, GitBranch = :b",
         ExpressionAttributeValues={
             ':s': package_state['BuildStatus'],
             ':m': package_state.get('IsMeta'),
             ':g': package_state.get('GitUrl'),
             ':r': package_state.get('repo'),
+            ':b': package_state.get('GitBranch'),
         }
     )
 
@@ -171,6 +172,7 @@ def build_metapackage(fanout_table):
     msg = {
         "git_url": resp['Items'][0]['GitUrl'],
         "repo": resp['Items'][0]['repo'],
+        "git_branch": resp['Items'][0]['GitBranch'],
     }
     send_to_queue(METAPACKAGE_QUEUE, json.dumps(msg))
     print("Removing the metapackage from the fanout table")

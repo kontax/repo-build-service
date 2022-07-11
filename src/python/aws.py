@@ -33,7 +33,7 @@ def send_to_queue(queue_url, message):
     print(f"Message sent: {response['MessageId']}")
 
 
-def start_ecs_task(cluster, task_definition, overrides):
+def start_ecs_task(cluster, task_definition, overrides={}):
     """Starts a new ECS task within a Fargate cluster to build the packages
 
     The ECS task pulls each package built one by one from the queue and adds
