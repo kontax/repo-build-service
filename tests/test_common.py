@@ -1,7 +1,7 @@
 import boto3
 import pytest
 
-from moto import mock_dynamodb2
+from moto import mock_dynamodb
 
 @pytest.fixture()
 def dynamodb_table():
@@ -16,7 +16,7 @@ def dynamodb_table():
         {'repo': 'personal-dev', 'package': 'rr'}
     ]
 
-    with mock_dynamodb2():
+    with mock_dynamodb():
         client = boto3.client('dynamodb')
         client.create_table(
             TableName=table_name,
@@ -27,7 +27,11 @@ def dynamodb_table():
             KeySchema=[
                 {"KeyType": "HASH", "AttributeName": "Repository"},
                 {"KeyType": "RANGE", "AttributeName": "PackageName"}
-            ]
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 5,
+                'WriteCapacityUnits': 5
+            }
         )
 
         tbl = boto3.resource('dynamodb').Table(table_name)

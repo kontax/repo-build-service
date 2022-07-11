@@ -8,7 +8,7 @@ import pytest
 import sys
 
 from mock import patch
-from moto import mock_sqs, mock_sts, mock_dynamodb2
+from moto import mock_sqs, mock_sts, mock_dynamodb
 from urllib.parse import urlparse, parse_qs
 
 # Get the root path of the project to allow importing
