@@ -59,7 +59,7 @@ def get_pkgbuild_location(payload):
     if 'commits' not in payload or len(payload['commits']) == 0:
         return None
 
-    pkgbuild = [x for x in payload['commits'][0]['modified'] if x.endswith("PKGBUILD")]
+    pkgbuild = [x for xs in [y['modified'] for y in payload['commits']] for x in xs if x.endswith('PKGBUILD')]
     if len(pkgbuild) == 0:
         return None
 
