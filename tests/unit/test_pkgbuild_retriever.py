@@ -23,6 +23,7 @@ INPUTS = {
     'no_commits': 'tests/inputs/pkgbuild_retriever/no_commits.json',
     'master_commit': 'tests/inputs/pkgbuild_retriever/master_commit.json',
     'random_branch': 'tests/inputs/pkgbuild_retriever/random_branch.json',
+    'multiple_commits': 'tests/inputs/pkgbuild_retriever/multiple_commits.json',
 }
 PKGBUILDS = {
     'master': 'tests/inputs/pkgbuild_retriever/master_pkgbuild.json',
@@ -241,3 +242,31 @@ def test_no_commit_throws_401():
 
     resp = lambda_handler(webhook, None)
     assert resp['statusCode'] == 401
+
+
+@mock_sqs
+@patch('urllib.request.urlopen', UrlOpenMockContext)
+def test_mutiple_commits_parses_pkgbuild():
+
+    sqs = boto3.resource("sqs", region_name='eu-west-1')
+    new_queue = sqs.create_queue(QueueName="PkgbuildParserQueue")
+
+    os.environ["NEXT_QUEUE"] = new_queue.url
+    os.environ['GITHUB_WEBHOOK_SECRET'] = "ABCD1234ABCD1234"
+    from pkgbuild_retriever.retrieve_pkgbuild import lambda_handler
+
+    webhook = get_input(
+        'multiple_commits',
+        os.environ.get('GITHUB_WEBHOOK_SECRET'))
+
+    resp = lambda_handler(webhook, None)
+    assert resp['statusCode'] == 200
+    messages = new_queue.receive_messages()
+    assert len(messages) == 1
+
+    pkgbuild = json.loads(messages[0].body)
+    branch = pkgbuild['git_branch']
+    assert branch == 'master'
+
+    stage = pkgbuild['stage']
+    assert stage == 'prod'
