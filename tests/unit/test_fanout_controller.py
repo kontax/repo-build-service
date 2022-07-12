@@ -74,6 +74,7 @@ def test_fanout_status_table_gets_updated_with_regular_package(dynamodb_table):
         "BuildStatus": "Initialized",
         "IsMeta": False,
         "repo": "couldinho-test",
+        "GitBranch": None,
         "GitUrl": None
     }
 
@@ -165,6 +166,7 @@ def test_metapackage_gets_built_after_other_packages(dynamodb_table):
 
     # Queue item to check
     queue_output = {
+        "git_branch": "dev",
         "git_url": "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
         "repo": "couldinho-test"
     }
@@ -172,24 +174,26 @@ def test_metapackage_gets_built_after_other_packages(dynamodb_table):
     # Add a test item to the status table
     dynamodb_table.update_item(
         Key={'PackageName': 'GIT_REPO'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r, GitBranch = :b",
         ExpressionAttributeValues={
             ':s': "Initialized",
             ':m': True,
             ':g': "https://raw.githubusercontent.com/test_user/master/pkg/PKGBUILD",
-            ':r': "couldinho-test"
+            ':r': "couldinho-test",
+            ':b': "dev"
         }
     )
 
     # Add the package currently building
     dynamodb_table.update_item(
         Key={'PackageName': 'mce-dev'},
-        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r",
+        UpdateExpression="set BuildStatus = :s, IsMeta = :m, GitUrl = :g, repo = :r, GitBranch = :b",
         ExpressionAttributeValues={
             ':s': "Building",
             ':m': False,
             ':g': None,
-            ':r': "couldinho-test"
+            ':r': "couldinho-test",
+            ':b': "dev"
         }
     )
 
