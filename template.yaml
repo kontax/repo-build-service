@@ -542,7 +542,7 @@ Resources:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "fanout-starter-queue-${StageName}"
-      VisibilityTimeout: 60
+      VisibilityTimeout: 600
 
   BuildFunctionQueue:
     Type: AWS::SQS::Queue
