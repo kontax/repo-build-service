@@ -90,7 +90,7 @@ Resources:
   PackageUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-package-update-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-package-update-${StageName}"
       Description: Scheduled updating of the package list in all repositories
       CodeUri: package_updater
       Handler: update_packages.lambda_handler
@@ -118,7 +118,7 @@ Resources:
   RepoUpdateFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-repo-update-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-repo-update-${StageName}"
       Description: Scheduled updating of the personal repository
       CodeUri: repo_updater
       Handler: update_repo.lambda_handler
@@ -148,7 +148,7 @@ Resources:
   PkgbuildRetrieverFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-pkgbuild-retriever-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-pkgbuild-retriever-${StageName}"
       Description: API for pulling the PKGBUILD from Github
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
@@ -179,7 +179,7 @@ Resources:
   PkgbuildParserFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-pkgbuild-parser-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-pkgbuild-parser-${StageName}"
       Description: Parses the PKGBUILD and extracts a list of packages from it
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
@@ -206,7 +206,7 @@ Resources:
   FanoutStarterFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-fanout-starter-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-fanout-starter-${StageName}"
       Description: A starter function to set up the fan-out and fan-in of building packages
       CodeUri: fanout_starter
       Handler: starter.lambda_handler
@@ -242,7 +242,7 @@ Resources:
   BuildFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-build-package-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-build-package-${StageName}"
       Description: Starts an ECS task to build a package and adds the package to the build queue
       CodeUri: pkg_builder
       Handler: build_package.lambda_handler
@@ -274,7 +274,7 @@ Resources:
   FanoutControllerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-fanout-controller-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-fanout-controller-${StageName}"
       Description: Manages the parallel building of packages via the FanoutStatus table
       CodeUri: fanout_controller
       Handler: controller.lambda_handler
@@ -307,7 +307,7 @@ Resources:
   MetapackageBuilderFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-metapackage-builder-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-metapackage-builder-${StageName}"
       Description: Retrieves the metapackage PKGBUILD and queues it for building
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
@@ -337,7 +337,7 @@ Resources:
   ErrorHandlerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Sub "{AWS::StackName}-error-handler-${StageName}"
+      FunctionName: !Sub "${AWS::StackName}-error-handler-${StageName}"
       Description: Catch and notify on errors in other functions
       CodeUri: reporting
       Handler: error_reporting.handler
