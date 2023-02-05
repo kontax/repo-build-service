@@ -86,6 +86,12 @@ def handle_fanout_status(package_message):
         print(f"{still_building} items still in table")
         return return_code(200, {"status": "Items are still running"})
 
+    # If the metapackage build failed, we're done
+    if still_building < 0:
+        print(f"Metapackage build failed, exiting")
+        return return_code(200, {"status", "Metapackage failed"})
+
+
     # Otherwise if everything has completed, invoke the meta-package 
     # building function
     build_metapackage(fanout_table)

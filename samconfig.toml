@@ -6,6 +6,6 @@ stack_name = "repo-build-service"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-1mjhgvy31ucmj"
 s3_prefix = "repo-build-service"
 region = "eu-west-1"
-confirm_changeset = true
+confirm_changeset = false
 capabilities = "CAPABILITY_NAMED_IAM"
 parameter_overrides = "StageName=\"prod\" PersonalRepository=\"https://s3-eu-west-1.amazonaws.com/couldinho-arch-aur/x86_64/couldinho-arch-aur.db\" PersonalRepositoryDev=\"https://s3-eu-west-1.amazonaws.com/couldinho-arch-aur-dev/x86_64/couldinho-arch-aur.db\" PersonalRepoBucket=\"couldinho-arch-aur\" DevRepoBucket=\"couldinho-arch-aur-dev\" RepoName=\"couldinho-arch-aur\" RepoArch=\"x86_64\" AurPackager=\"aur@coulson.ie\" RepositoryCountries=\"IE,GB\" GithubWebhookSecret=\"{{resolve:ssm:githubToken:1}}\" PushoverToken=\"{{resolve:ssm:pushoverToken:1}}\" PushoverUser=\"{{resolve:ssm:pushoverUser:1}}\" AurKeyParam=\"aur_key\" AurKeysParam=\"aur_keys\" AurKeyDecrypt=\"key/c48582ac-e2d2-482f-babc-fb4fe32650b0\" MaxTaskCount=\"1\""

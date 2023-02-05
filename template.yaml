@@ -96,9 +96,6 @@ Resources:
       Handler: update_packages.lambda_handler
       Timeout: 900
       MemorySize: 512
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref PackageTable
@@ -124,9 +121,6 @@ Resources:
       Handler: update_repo.lambda_handler
       Timeout: 60
       Role: !GetAtt ExtractRole.Arn
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt ErrorQueue.QueueName
@@ -153,9 +147,6 @@ Resources:
       CodeUri: pkgbuild_retriever
       Handler: retrieve_pkgbuild.lambda_handler
       Timeout: 20
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt PkgbuildParserQueue.QueueName
@@ -184,9 +175,6 @@ Resources:
       CodeUri: pkgbuild_parser
       Handler: parse_pkgbuild.lambda_handler
       Timeout: 10
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !GetAtt FanoutStarterQueue.QueueName
@@ -212,9 +200,6 @@ Resources:
       Handler: starter.lambda_handler
       Timeout: 600
       ReservedConcurrentExecutions: 1
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref PackageTable
@@ -247,9 +232,6 @@ Resources:
       CodeUri: pkg_builder
       Handler: build_package.lambda_handler
       Timeout: 60
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Role: !GetAtt ExtractRole.Arn
       Policies:
         - SQSSendMessagePolicy:
@@ -279,9 +261,6 @@ Resources:
       CodeUri: fanout_controller
       Handler: controller.lambda_handler
       Timeout: 30
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref FanoutStatusTable
@@ -312,9 +291,6 @@ Resources:
       CodeUri: metapackage_builder
       Handler: metapackage.lambda_handler
       Timeout: 20
-      DeadLetterQueue:
-        TargetArn: !GetAtt ErrorQueue.Arn
-        Type: SQS
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref FanoutStatusTable
@@ -531,42 +507,63 @@ Resources:
     Properties:
       QueueName: !Sub "package-update-queue-${StageName}"
       VisibilityTimeout: 900
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ErrorQueue.Arn
+        maxReceiveCount: 3
 
   PkgbuildParserQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "pkgbuild-parser-queue-${StageName}"
       VisibilityTimeout: 10
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ErrorQueue.Arn
+        maxReceiveCount: 3
 
   FanoutStarterQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "fanout-starter-queue-${StageName}"
       VisibilityTimeout: 600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ErrorQueue.Arn
+        maxReceiveCount: 3
 
   BuildFunctionQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "build-function-queue-${StageName}"
       VisibilityTimeout: 60
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ErrorQueue.Arn
+        maxReceiveCount: 3
 
   FanoutQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "fanout-queue-${StageName}"
       VisibilityTimeout: 30
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ErrorQueue.Arn
+        maxReceiveCount: 3
 
   MetapackageQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "metapackage-queue-${StageName}"
       VisibilityTimeout: 20
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ErrorQueue.Arn
+        maxReceiveCount: 3
 
   BuildQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "aur-pkg-build-${StageName}"
       VisibilityTimeout: 600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt ErrorQueue.Arn
+        maxReceiveCount: 3
 
   ErrorQueue:
     Type: AWS::SQS::Queue
